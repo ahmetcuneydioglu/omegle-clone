@@ -18,8 +18,9 @@ socket.on("waiting", () => {
 
 socket.on("matched", () => {
   status.innerText = "Eşleşti 🎉";
-  chat.style.display = "block";
+  chat.classList.remove("hidden");
 });
+
 
 socket.on("message", (data) => {
   const div = document.createElement("div");
@@ -42,17 +43,18 @@ send.onclick = () => {
 
 skip.onclick = () => {
   messages.innerHTML = "";
-  chat.style.display = "none";
+  chat.classList.add("hidden");
   status.innerText = "Yeni eşleşme aranıyor...";
   socket.emit("skip");
 };
 
+
 socket.on("partnerDisconnected", () => {
   messages.innerHTML = "";
-  chat.style.display = "none";
-  status.innerText = "Karşı taraf ayrıldı. Yeni eşleşme aranıyor...";
-  // Burada ekstra emit gerek yok, server zaten enqueue ediyor
+  chat.classList.add("hidden");
+  status.innerText = "Yeni eşleşme aranıyor...";
 });
+
 
 
 socket.on("system", (text) => {
@@ -60,5 +62,12 @@ socket.on("system", (text) => {
   div.style.color = "red";
   div.innerText = "⚠️ Sistem: " + text;
   messages.appendChild(div);
+});
+
+
+input.addEventListener("focus", () => {
+  setTimeout(() => {
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 300);
 });
 
