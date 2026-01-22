@@ -40,14 +40,14 @@ send.onclick = () => {
 
   input.value = "";
 
-  input.addEventListener("keydown", (e) => {
+};
+
+input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     send.click();
   }
 });
-
-};
 
 skip.onclick = () => {
   messages.innerHTML = "";
