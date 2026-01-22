@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Text Chat</title>
+</head>
+<body>
+
+    <p id="online">Online: 0</p>
+
+  <h2 id="status">Bağlanıyor...</h2>
+
+  <div id="chat" style="display:none;">
+    <div id="messages"></div>
+    <input id="input" placeholder="Mesaj yaz..." />
+    <button id="send">Gönder</button>
+    <button id="skip">Yeni Sohbet</button>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
