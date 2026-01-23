@@ -11,12 +11,9 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  },
+  cors: { origin: "*", methods: ["GET", "POST"] },
   pingTimeout: 20000,
-  pingInterval: 25000
+  pingInterval: 25000,
 });
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -25,31 +22,18 @@ let waitingUser = null;
 let onlineCount = 0;
 
 const messageTimestamps = new Map();
-
 function isSpamming(socket) {
   const now = Date.now();
   const last = messageTimestamps.get(socket.id) || 0;
   messageTimestamps.set(socket.id, now);
-
-  // 800 ms'den hızlı mesaj = spam
   return now - last < 800;
 }
 
-
-const bannedWords = [
-  "amk",
-  "sik",
-  "küfür3"
-  // buraya istediğini ekleyebilirsin
-];
-
+const bannedWords = ["amk", "sik", "küfür3"];
 function containsBannedWord(text) {
-  const lower = text.toLowerCase();
-  return bannedWords.some(word => lower.includes(word));
+  const lower = String(text || "").toLowerCase();
+  return bannedWords.some((w) => lower.includes(w));
 }
-
-
-
 
 function generateNickname() {
   return "Stranger #" + Math.floor(1000 + Math.random() * 9000);
@@ -59,19 +43,35 @@ function enqueue(socket) {
   if (!socket || socket.disconnected) return;
   if (socket.partner) return;
 
-  if (waitingUser && !waitingUser.disconnected && waitingUser.id !== socket.id) {
+  if (waitingUser && (waitingUser.disconnected || waitingUser.partner)) {
+    waitingUser = null;
+  }
+
+  if (waitingUser && waitingUser.id === socket.id) {
+    socket.emit("waiting");
+    return;
+  }
+
+  if (waitingUser) {
     const other = waitingUser;
     waitingUser = null;
+
+    if (!other || other.disconnected || other.partner) {
+      enqueue(socket);
+      return;
+    }
 
     socket.partner = other;
     other.partner = socket;
 
-    socket.emit("matched");
-    other.emit("matched");
-  } else {
-    waitingUser = socket;
-    socket.emit("waiting");
+    // Waiting’deki kişi initiator olsun
+    other.emit("matched", true);
+    socket.emit("matched", false);
+    return;
   }
+
+  waitingUser = socket;
+  socket.emit("waiting");
 }
 
 io.on("connection", (socket) => {
@@ -83,28 +83,40 @@ io.on("connection", (socket) => {
 
   enqueue(socket);
 
+  // ✅ CHAT MESAJ
   socket.on("message", (msg) => {
-  if (!socket.partner) return;
+    if (!socket.partner) return;
 
-  // Spam kontrolü
-  if (isSpamming(socket)) {
-    socket.emit("system", "Çok hızlı mesaj gönderiyorsun.");
-    return;
-  }
+    if (isSpamming(socket)) {
+      socket.emit("system", "Çok hızlı mesaj gönderiyorsun.");
+      return;
+    }
 
-  // Küfür kontrolü
-  if (containsBannedWord(msg)) {
-    socket.emit("system", "Mesajın uygunsuz içerik nedeniyle gönderilmedi.");
-    return;
-  }
+    if (containsBannedWord(msg)) {
+      socket.emit("system", "Mesajın uygunsuz içerik nedeniyle gönderilmedi.");
+      return;
+    }
 
-  socket.partner.emit("message", {
-    from: socket.nickname,
-    text: msg
+    socket.partner.emit("message", { from: socket.nickname, text: msg });
   });
-});
 
+  // ✅ WEBRTC SİNYALLEŞME (BUNLAR message İÇİNDE OLMAMALI!)
+  socket.on("offer", (data) => {
+    console.log("SERVER: offer geldi", socket.id, "partner?", !!socket.partner);
+    if (socket.partner) socket.partner.emit("offer", data);
+  });
 
+  socket.on("answer", (data) => {
+    console.log("SERVER: answer geldi", socket.id, "partner?", !!socket.partner);
+    if (socket.partner) socket.partner.emit("answer", data);
+  });
+
+  socket.on("ice-candidate", (data) => {
+    // console.log("SERVER: ice geldi", socket.id, "partner?", !!socket.partner);
+    if (socket.partner) socket.partner.emit("ice-candidate", data);
+  });
+
+  // ✅ SKIP
   socket.on("skip", () => {
     const partner = socket.partner;
 
@@ -112,19 +124,25 @@ io.on("connection", (socket) => {
       partner.partner = null;
       partner.emit("partnerDisconnected");
     }
-
     socket.partner = null;
-    socket.nickname = generateNickname();
+
+    if (
+      waitingUser &&
+      (waitingUser.id === socket.id || (partner && waitingUser.id === partner.id))
+    ) {
+      waitingUser = null;
+    }
 
     enqueue(socket);
-    enqueue(partner);
+    if (partner) enqueue(partner);
   });
 
+  // ✅ DISCONNECT
   socket.on("disconnect", () => {
     onlineCount--;
     io.emit("onlineCount", onlineCount);
 
-    if (socket === waitingUser) {
+    if (waitingUser && waitingUser.id === socket.id) {
       waitingUser = null;
     }
 
@@ -132,13 +150,11 @@ io.on("connection", (socket) => {
     if (partner) {
       partner.partner = null;
       partner.emit("partnerDisconnected");
+      if (waitingUser && waitingUser.id === partner.id) waitingUser = null;
       enqueue(partner);
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log("Server running on port", PORT));

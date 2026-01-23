@@ -6,68 +6,99 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-
-  <!-- Tailwind CDN -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-
 </head>
+
 <body class="bg-gray-900 text-white min-h-screen flex items-center justify-center">
 
-<div class="w-full h-full sm:h-auto sm:max-w-md bg-gray-800 sm:rounded-xl shadow-lg p-3 sm:p-4 flex flex-col">
+  <div class="w-full h-full sm:max-w-md bg-gray-800 sm:rounded-xl shadow-lg p-3 flex flex-col">
 
-    <!-- Online -->
+    <!-- Header -->
     <div class="flex justify-between items-center mb-3">
       <h1 class="text-xl font-bold">Text Chat</h1>
       <p id="online" class="text-green-400 text-sm">Online: 0</p>
     </div>
 
+    <!-- Video -->
+    <div
+      id="videoArea"
+      class="hidden flex justify-center gap-2 mb-2"
+    >
+
+      <video
+        id="localVideo"
+        autoplay
+        muted
+        playsinline
+        class="w-1/2 bg-black rounded"
+      ></video>
+
+      <video
+        id="remoteVideo"
+        autoplay
+        playsinline
+        class="w-1/2 bg-black rounded"
+      ></video>
+
+    </div>
+
     <!-- Status -->
-    <p id="status" class="text-center text-gray-400 mb-3">
+    <p
+      id="status"
+      class="text-center text-gray-400 mb-3"
+    >
       Bağlanıyor...
     </p>
 
     <!-- Chat -->
-    <div id="chat" class="hidden flex flex-col flex-1 min-h-0">
+    <div
+      id="chat"
+      class="hidden flex flex-col flex-1 min-h-0"
+    >
 
       <!-- Messages -->
       <div
-            id="messages"
-            class="flex-1 overflow-y-auto bg-gray-900 rounded p-2 mb-2 space-y-1 text-sm break-words"
-       ></div>
-
+        id="messages"
+        class="flex-1 overflow-y-auto bg-gray-900 rounded p-2 mb-2 space-y-1 text-sm"
+      ></div>
 
       <!-- Input -->
-        <div class="flex gap-2 items-center">
+      <div class="flex gap-2">
 
         <input
-            id="input"
-            type="text"
-            placeholder="Mesaj yaz..."
-            class="flex-1 bg-gray-700 rounded px-3 py-3 text-base focus:outline-none"
-            />
-
+          id="input"
+          type="text"
+          placeholder="Mesaj yaz..."
+          class="flex-1 bg-gray-700 rounded px-3 py-2 focus:outline-none"
+        />
 
         <button
           id="send"
-          class="bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded text-base"
+          class="bg-blue-600 px-4 py-2 rounded"
         >
           Gönder
         </button>
 
         <button
           id="skip"
-          class="bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded text-base"
+          class="bg-blue-600 px-4 py-2 rounded"
         >
           Yeni
         </button>
 
       </div>
+
     </div>
 
   </div>
 
+
+  <!-- Socket -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
+
+  <!-- App -->
+  <script src="/script.js"></script>
 
 </body>
 </html>
