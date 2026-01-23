@@ -83,6 +83,11 @@ io.on("connection", (socket) => {
 
   enqueue(socket);
 
+  socket.on("report", () => {
+  console.log("REPORT:", socket.id, socket.nickname);
+});
+
+
   // ✅ CHAT MESAJ
   socket.on("message", (msg) => {
     if (!socket.partner) return;

@@ -1,5 +1,7 @@
 const socket = io();
 
+
+
 let isInitiator = false;
 let localStream = null;
 let peerConnection = null;
@@ -18,7 +20,13 @@ const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 const videoArea = document.getElementById("videoArea");
 
-/* RTC */
+const toggleMic = document.getElementById("toggleMic");
+const toggleCam = document.getElementById("toggleCam");
+const pauseBtn = document.getElementById("pauseBtn");
+const reportBtn = document.getElementById("reportBtn");
+
+
+/* RTC 
 const rtcConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -35,6 +43,15 @@ const rtcConfig = {
     }
   ]
 };
+
+*/
+
+const rtcConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" }
+  ]
+};
+
 
 
 /* Kamera */
@@ -54,6 +71,7 @@ function ensurePeer() {
   if (peerConnection) return;
 
   peerConnection = new RTCPeerConnection(rtcConfig);
+
 
   localStream.getTracks().forEach((track) => {
     peerConnection.addTrack(track, localStream);
@@ -231,3 +249,57 @@ socket.on("system", (text) => {
   div.innerText = "⚠️ Sistem: " + text;
   messages.appendChild(div);
 });
+
+
+let micOn = true;
+
+toggleMic.onclick = () => {
+  if (!localStream) return;
+
+  micOn = !micOn;
+
+  localStream.getAudioTracks().forEach(t => {
+    t.enabled = micOn;
+  });
+
+  toggleMic.innerText = micOn ? "🎤 Ses Kapat" : "🔇 Ses Aç";
+};
+
+
+let camOn = true;
+
+toggleCam.onclick = () => {
+  if (!localStream) return;
+
+  camOn = !camOn;
+
+  localStream.getVideoTracks().forEach(t => {
+    t.enabled = camOn;
+  });
+
+  toggleCam.innerText = camOn ? "📷 Kamera Kapat" : "📵 Kamera Aç";
+};
+
+
+let paused = false;
+
+pauseBtn.onclick = () => {
+
+  if (!localStream) return;
+
+  paused = !paused;
+
+  localStream.getTracks().forEach(t => {
+    t.enabled = !paused;
+  });
+
+  pauseBtn.innerText = paused ? "▶️ Devam" : "⏸️ Durdur";
+};
+
+
+reportBtn.onclick = () => {
+  if (!confirm("Bu kullanıcıyı rapor etmek istiyor musun?")) return;
+
+  socket.emit("report");
+  alert("Rapor gönderildi. Teşekkürler.");
+};
