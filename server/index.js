@@ -38,17 +38,35 @@ function addStrike(socket, reason) {
 
   console.log("STRIKE:", socket.ip, count, reason);
 
+  const BAN_DURATION = 1 * 60 * 1000; // 1 dakika
+
+  // 3 ihlal = ban
   if (count >= 3) {
+
+    const until = Date.now() + BAN_DURATION;
 
     bannedIPs.set(socket.ip, {
       reason,
-      until: Date.now() + 1 * 60 * 1000 // 1 saat
+      until
     });
 
-    socket.emit("system", "Geçici olarak engellendin.");
+    console.log(
+      "🚫 BAN:",
+      socket.ip,
+      "Sebep:", reason,
+      "Bitiş:",
+      new Date(until).toLocaleString()
+    );
+
+    socket.emit(
+      "system",
+      "3 ihlal yaptığın için 1 dakika banlandın."
+    );
+
     socket.disconnect(true);
   }
 }
+
 
 function isSpamming(socket) {
 
@@ -118,11 +136,25 @@ io.on("connection", (socket) => {
     socket.handshake.headers["x-forwarded-for"]?.split(",")[0] ||
     socket.handshake.address;
 
-  if (isBanned(ip)) {
-    console.log("BLOCKED:", ip);
-    socket.disconnect(true);
-    return;
+  function isBanned(ip) {
+  const ban = bannedIPs.get(ip);
+
+  if (!ban) return false;
+
+  // Süresi bittiyse kaldır
+  if (ban.until && ban.until < Date.now()) {
+
+    console.log("✅ BAN KALKTI:", ip);
+
+    bannedIPs.delete(ip);
+    return false;
   }
+
+  console.log("⛔ BANNED IP DENEDİ:", ip);
+
+  return true;
+}
+
 
   socket.ip = ip;
 
