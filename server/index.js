@@ -242,6 +242,40 @@ io.on("connection", (socket) => {
 
 });
 
+
+app.get("/admin/bans", (req, res) => {
+
+  let html = `
+  <h2>🚫 Ban Listesi</h2>
+  <table border="1" cellpadding="8">
+  <tr>
+    <th>IP</th>
+    <th>Sebep</th>
+    <th>Bitiş</th>
+  </tr>
+  `;
+
+  for (const [ip, info] of bannedIPs.entries()) {
+
+    const until = info.until
+      ? new Date(info.until).toLocaleString()
+      : "Süresiz";
+
+    html += `
+      <tr>
+        <td>${ip}</td>
+        <td>${info.reason}</td>
+        <td>${until}</td>
+      </tr>
+    `;
+  }
+
+  html += "</table>";
+
+  res.send(html);
+});
+
+
 /* START */
 
 const PORT = process.env.PORT || 3000;
