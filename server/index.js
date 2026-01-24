@@ -275,6 +275,22 @@ app.get("/admin/bans", (req, res) => {
   res.send(html);
 });
 
+app.get("/admin/unban", (req, res) => {
+  const ip = req.query.ip;
+
+  if (!ip) {
+    return res.status(400).send("IP adresi girilmedi.");
+  }
+
+  if (!bannedIPs.has(ip)) {
+    return res.send(`❗ ${ip} zaten banlı değil.`);
+  }
+
+  bannedIPs.delete(ip);
+
+  res.send(`✅ ${ip} banı kaldırıldı.`);
+});
+
 
 /* START */
 
