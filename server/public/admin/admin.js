@@ -90,6 +90,10 @@ async function refresh() {
                         data-action="ban" data-sid="${u.id}">
                   Ban
                 </button>
+
+                <button class="spy bg-blue-600 px-2 rounded"
+                 data-id="${u.id}">İzle</button>
+
               </div>
             </div>
           `;
@@ -132,6 +136,17 @@ async function refresh() {
     }
   }
 }
+
+div.querySelector(".spy").onclick = async () => {
+
+  await fetch("/admin/api/spy",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json"},
+    body:JSON.stringify({ socketId: u.id })
+  });
+
+};
+
 
 async function manualBan() {
   const ip = el("banIp")?.value?.trim();
@@ -179,3 +194,22 @@ function bind() {
 }
 
 document.addEventListener("DOMContentLoaded", bind);
+
+// Spy socket
+const spySocket = io();
+
+spySocket.on("admin-spy", data => {
+
+  const box = document.getElementById("spyBox");
+
+  if (!box) return;
+
+  const div = document.createElement("div");
+
+  div.innerText = `${data.from}: ${data.text}`;
+
+  box.appendChild(div);
+
+  box.scrollTop = box.scrollHeight;
+});
+

@@ -8,6 +8,10 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// admin'in izlediği oda
+let spyRoom = null;
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -171,6 +175,26 @@ app.get("/admin/api/stats", requireAdmin, (req,res)=>{
   });
 });
 
+app.post("/admin/api/spy", requireAdmin, (req, res) => {
+
+  const { socketId } = req.body;
+
+  const sock = io.sockets.sockets.get(socketId);
+
+  if (!sock || !sock.partner) {
+    return res.json({ ok: false });
+  }
+
+  // Odayı işaretle
+  spyRoom = {
+    a: sock.id,
+    b: sock.partner.id
+  };
+
+  res.json({ ok: true });
+});
+
+
 
 // KICK
 app.post("/admin/api/kick", requireAdmin, (req,res)=>{
@@ -294,6 +318,23 @@ io.on("connection",(socket)=>{
       from: socket.nickname,
       text: msg
     });
+
+    // ADMIN SPY
+      if (
+        spyRoom &&
+        (
+          spyRoom.a === socket.id ||
+          spyRoom.b === socket.id
+        )
+      ) {
+        io.emit("admin-spy", {
+          from: socket.nickname,
+          text: msg,
+          room: spyRoom
+        });
+      }
+
+
   });
 
   // REPORT
