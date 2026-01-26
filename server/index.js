@@ -167,12 +167,22 @@ app.get("/admin/api/stats", requireAdmin, (req, res) => {
     remainingMs: Math.max(0, info.until - Date.now()),
   }));
 
-  res.json({
-    ok: true,
-    online: onlineCount,
-    waiting: waitingUser ? waitingUser.id : null,
-    banned,
-  });
+  const users = Array.from(liveUsers.entries()).map(([id, u]) => ({
+  id,
+  ip: u.ip,
+  nickname: u.nickname,
+  since: u.connectedAt
+}));
+
+res.json({
+  ok: true,
+  online: onlineCount,
+  waiting: waitingUser ? waitingUser.id : null,
+  banned,
+  users
+});
+
+
 });
 
 // ip ban
@@ -323,15 +333,14 @@ function enqueue(socket) {
 
 io.on("connection", (socket) => {
 
+  socket.ip = getIP(socket);
+
   liveUsers.set(socket.id, {
-  id: socket.id,
   ip: socket.ip,
   nickname: socket.nickname,
-  partner: null,
-  strikes: 0
+  connectedAt: Date.now()
 });
 
-  socket.ip = getIP(socket);
 
   if (isBanned(socket.ip)) {
     console.log("BANNED blocked:", socket.ip);
@@ -421,6 +430,7 @@ io.on("connection", (socket) => {
     }
 
     liveUsers.delete(socket.id);
+    onlineCount--;
 
   });
 });
