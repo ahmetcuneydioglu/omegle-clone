@@ -1,64 +1,123 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>Admin Panel</title>
-  <a
-  href="/admin/logout"
-  class="fixed top-4 right-4 bg-red-600 px-3 py-2 rounded"
->
-  Logout
-</a>
-  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-slate-900 text-white min-h-screen">
-  <div class="max-w-3xl mx-auto p-6">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="text-2xl font-bold">🛡️ Admin Panel</div>
-      <div class="ml-auto text-sm text-slate-300">/admin</div>
-      
-    </div>
 
-    <div class="grid gap-4">
-      <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
-        <div class="text-slate-300 text-sm">Online Kullanıcı</div>
-        <div id="online" class="text-3xl font-bold text-green-400 mt-1">-</div>
-      </div>
+<div class="max-w-4xl mx-auto p-6">
 
-      <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="font-semibold">Banlı IP’ler</div>
-          <button id="refresh" class="ml-auto bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm">Yenile</button>
-        </div>
+  <!-- HEADER -->
+  <div class="flex justify-between items-center mb-6">
 
-        <div class="grid md:grid-cols-2 gap-3 mb-4">
-          <input id="ip" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2" placeholder="IP (örn: 1.2.3.4)" />
-          <input id="minutes" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2" placeholder="Süre (dk) örn: 60" />
-          <input id="reason" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 md:col-span-2" placeholder="Sebep (opsiyonel)" />
-          <div class="flex gap-2 md:col-span-2">
-            <button id="banBtn" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg">Banla</button>
-            <button id="unbanBtn" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg">Unban</button>
-          </div>
-        </div>
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      🛡️ Admin Panel
+    </h1>
 
-        <div id="bannedList" class="space-y-2 text-sm"></div>
-      </div>
+    <button
+      id="btnLogout"
+      class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+    >
+      Logout
+    </button>
 
-      <div class="bg-gray-800 p-4 rounded mt-6">
-        <h3 class="mb-3 font-bold">👁 Canlı Kullanıcılar</h3>
-
-        <div id="userList" class="space-y-2 text-sm"></div>
-      </div>
-
-
-      <div class="text-xs text-slate-400">
-        Not: Admin API istekleri için <b>x-admin-token</b> header kullanıyoruz. Token Render ENV’de <b>ADMIN_TOKEN</b>.
-      </div>
-    </div>
   </div>
 
-  <script src="/admin/admin.js"></script>
+
+  <!-- ONLINE -->
+  <div class="bg-slate-800 rounded p-4 mb-4">
+
+    <h2 class="font-semibold mb-2">Online Kullanıcı</h2>
+
+    <div class="text-3xl text-green-400" id="onlineCount">0</div>
+
+  </div>
+
+
+  <!-- BAN PANEL -->
+  <div class="bg-slate-800 rounded p-4 mb-4">
+
+    <div class="flex justify-between items-center mb-2">
+
+      <h2 class="font-semibold">Ban Yönetimi</h2>
+
+      <button
+        id="btnRefresh"
+        class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm"
+      >
+        Yenile
+      </button>
+
+    </div>
+
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+
+      <input
+        id="banIp"
+        placeholder="IP (örn 1.2.3.4)"
+        class="bg-slate-700 px-3 py-2 rounded outline-none"
+      >
+
+      <input
+        id="banMinutes"
+        placeholder="Süre (dk)"
+        class="bg-slate-700 px-3 py-2 rounded outline-none"
+      >
+
+      <input
+        id="banReason"
+        placeholder="Sebep (opsiyonel)"
+        class="bg-slate-700 px-3 py-2 rounded outline-none"
+      >
+
+    </div>
+
+
+    <div class="flex gap-2 mb-3">
+
+      <button
+        id="btnBan"
+        class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+      >
+        Banla
+      </button>
+
+      <button
+        id="btnUnban"
+        class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"
+      >
+        Unban
+      </button>
+
+    </div>
+
+
+    <div id="bannedList"></div>
+
+  </div>
+
+
+  <!-- LIVE USERS -->
+  <div class="bg-slate-800 rounded p-4">
+
+    <h2 class="font-semibold mb-3">👁️ Canlı Kullanıcılar</h2>
+
+    <div id="liveUsers"></div>
+
+  </div>
+
+
+</div>
+
+
+<script src="/admin/admin.js"></script>
+
 </body>
 </html>
