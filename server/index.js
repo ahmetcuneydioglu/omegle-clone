@@ -3,6 +3,13 @@ import http from "http";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,10 +19,19 @@ const server = http.createServer(app);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.json());
+
 
 // ====== AYARLAR ======
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "dev-admin-123"; // Render ENV'e koyacağız
 const bannedWords = ["amk", "sik", "küfür3"];
+
+const adminUser = {
+  username: process.env.ADMIN_USER,
+  passwordHash: bcrypt.hashSync(process.env.ADMIN_PASS, 10)
+};
+
 
 // ip => { reason, until }
 const bannedIPs = new Map();
@@ -92,6 +108,8 @@ const io = new Server(server, {
 
 // ====== STATIC ======
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/admin", adminAuth);
+
 
 // ====== ADMIN AUTH MIDDLEWARE ======
 function requireAdmin(req, res, next) {
@@ -150,9 +168,52 @@ app.post("/admin/api/unban", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/admin/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (username !== adminUser.username) {
+    return res.status(401).json({ error: "Hatalı kullanıcı" });
+  }
+
+  const ok = await bcrypt.compare(password, adminUser.passwordHash);
+
+  if (!ok) {
+    return res.status(401).json({ error: "Hatalı şifre" });
+  }
+
+  const token = jwt.sign(
+    { role: "admin" },
+    process.env.JWT_SECRET,
+    { expiresIn: "2h" }
+  );
+
+  res.cookie("admin_token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict"
+  });
+
+  res.json({ success: true });
+});
+
+
 // ====== MATCHING ======
 let waitingUser = null;
 let onlineCount = 0;
+
+function adminAuth(req, res, next) {
+  const token = req.cookies.admin_token;
+
+  if (!token) return res.redirect("/admin/login.html");
+
+  try {
+    jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    res.redirect("/admin/login.html");
+  }
+}
+
 
 function generateNickname() {
   return "Stranger #" + Math.floor(1000 + Math.random() * 9000);
