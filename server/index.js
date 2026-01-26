@@ -111,11 +111,27 @@ app.post("/admin/login", (req, res) => {
     password === process.env.ADMIN_PASS
   ) {
     req.session.admin = true;
-    return res.json({ ok: true });
+
+    return res.json({ success: true });
   }
 
-  res.status(401).json({ ok: false });
+  res.status(401).json({ error: "Hatalı giriş" });
 });
+
+
+
+app.get("/admin", requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, "public/admin/index.html"));
+});
+
+app.get("/admin/logout", (req, res) => {
+
+  req.session.destroy(() => {
+    res.redirect("/admin/login.html");
+  });
+
+});
+
 
 app.get("/admin/logout", (req,res)=>{
   req.session.destroy(()=>{
