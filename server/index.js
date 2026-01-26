@@ -138,6 +138,18 @@ io.on("connection", (socket) => {
     socket.handshake.headers["x-forwarded-for"]?.split(",")[0] ||
     socket.handshake.address;
 
+    socket.on("admin:getData", () => {
+
+  const banList = [...bannedIPs.keys()];
+
+  socket.emit("admin:data", {
+    online: onlineCount,
+    bans: banList
+  });
+
+  });
+
+
   function isBanned(ip) {
   const ban = bannedIPs.get(ip);
 
@@ -309,9 +321,11 @@ app.post("/admin/login", express.json(), (req, res) => {
   res.json({ success: true, token });
 });
 
-app.get("/admin", (req, res) => {
 
-  res.sendFile(path.join(__dirname, "admin.html"));
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/admin/index.html"));
 });
 
 
