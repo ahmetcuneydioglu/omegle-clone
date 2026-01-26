@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+</head>
+
+<body style="background:#020617;color:white;padding:30px">
+
+<h1>🛡️ Admin Panel</h1>
+
+<p>Online: <span id="online">0</span></p>
+
+<button onclick="logout()">Çıkış</button>
+
+<script>
+
+async function load() {
+
+  const res = await fetch("/admin/stats");
+
+  if (!res.ok) {
+    location.href = "/admin-login.html";
+    return;
+  }
+
+  const data = await res.json();
+
+  online.innerText = data.online;
+}
+
+function logout() {
+  location.href = "/admin/logout";
+}
+
+load();
+setInterval(load, 3000);
+
+</script>
+
+</body>
+</html>
