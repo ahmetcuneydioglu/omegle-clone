@@ -465,7 +465,7 @@ io.on("connection", (socket) => {
     }
 
     liveUsers.delete(socket.id);
-    onlineCount--;
+    
 
   });
 });
