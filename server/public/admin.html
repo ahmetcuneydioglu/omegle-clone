@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white p-6">
+
+<div id="login" class="max-w-sm mx-auto mt-20">
+
+  <h2 class="text-xl mb-4">🔐 Admin Giriş</h2>
+
+  <input
+    id="pass"
+    type="password"
+    placeholder="Şifre"
+    class="w-full p-2 rounded bg-gray-700 mb-3"
+  >
+
+  <button
+    onclick="login()"
+    class="bg-blue-600 w-full py-2 rounded"
+  >
+    Giriş
+  </button>
+
+</div>
+
+
+<div id="panel" class="hidden">
+
+  <h1 class="text-2xl mb-4">📊 Dashboard</h1>
+
+  <p class="mb-3">
+    Online: <span id="online">0</span>
+  </p>
+
+  <table class="w-full text-sm border">
+
+    <thead>
+      <tr class="bg-gray-800">
+        <th class="p-2">Nick</th>
+        <th>IP</th>
+        <th>Durum</th>
+      </tr>
+    </thead>
+
+    <tbody id="users"></tbody>
+
+  </table>
+
+</div>
+
+
+<script>
+
+let token = null;
+
+async function login() {
+
+  const password = document.getElementById("pass").value;
+
+  const res = await fetch("/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password })
+  });
+
+  if (!res.ok) {
+    alert("Hatalı şifre");
+    return;
+  }
+
+  const data = await res.json();
+
+  token = data.token;
+
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("panel").classList.remove("hidden");
+
+  load();
+  setInterval(load, 3000);
+}
+
+async function load() {
+
+  const res = await fetch("/admin/data", {
+    headers: { "x-admin-token": token }
+  });
+
+  if (!res.ok) return;
+
+  const data = await res.json();
+
+  document.getElementById("online").innerText = data.online;
+
+  const tbody = document.getElementById("users");
+
+  tbody.innerHTML = "";
+
+  data.users.forEach(u => {
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td class="p-2">${u.nick}</td>
+      <td>${u.ip || "-"}</td>
+      <td>${u.connected ? "🟢 Chat" : "⚪ Waiting"}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+</script>
+
+</body>
+</html>

@@ -4,6 +4,8 @@ import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
 
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "123456";
+const adminSessions = new Set();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -289,6 +291,54 @@ app.get("/admin/unban", (req, res) => {
   bannedIPs.delete(ip);
 
   res.send(`✅ ${ip} banı kaldırıldı.`);
+});
+
+
+app.post("/admin/login", express.json(), (req, res) => {
+
+  const { password } = req.body;
+
+  if (password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ success: false });
+  }
+
+  const token = Math.random().toString(36).slice(2);
+
+  adminSessions.add(token);
+
+  res.json({ success: true, token });
+});
+
+app.get("/admin", (req, res) => {
+
+  res.sendFile(path.join(__dirname, "admin.html"));
+});
+
+
+app.get("/admin/data", (req, res) => {
+
+  const token = req.headers["x-admin-token"];
+
+  if (!adminSessions.has(token)) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+
+  const users = [];
+
+  for (const [id, s] of io.sockets.sockets) {
+    users.push({
+      id,
+      ip: s.ip,
+      nick: s.nickname,
+      connected: !!s.partner
+    });
+  }
+
+  res.json({
+    online: onlineCount,
+    users,
+    bans: Array.from(bannedIPs.entries())
+  });
 });
 
 
