@@ -158,6 +158,20 @@ async function loadUsers() {
 }
 
 
+fetch("/admin/api/kick",{
+  method:"POST",
+  headers:{ "Content-Type":"application/json"},
+  body:JSON.stringify({ socketId })
+});
+
+
+fetch("/admin/api/ban-socket",{
+  method:"POST",
+  headers:{ "Content-Type":"application/json"},
+  body:JSON.stringify({ socketId, minutes:60 })
+});
+
+
 setInterval(loadUsers, 3000);
 loadUsers();
 

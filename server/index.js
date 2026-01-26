@@ -160,30 +160,28 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // /admin/api/stats -> online + banned list
 app.get("/admin/api/stats", requireAdmin, (req, res) => {
+
   const banned = Array.from(bannedIPs.entries()).map(([ip, info]) => ({
     ip,
     reason: info.reason,
-    until: info.until,
-    remainingMs: Math.max(0, info.until - Date.now()),
+    until: info.until
   }));
 
   const users = Array.from(liveUsers.entries()).map(([id, u]) => ({
-  id,
-  ip: u.ip,
-  nickname: u.nickname,
-  since: u.connectedAt
-}));
+    id,
+    ip: u.ip,
+    nickname: u.nickname,
+    strikes: strikeCount.get(u.ip) || 0
+  }));
 
-res.json({
-  ok: true,
-  online: onlineCount,
-  waiting: waitingUser ? waitingUser.id : null,
-  banned,
-  users
+  res.json({
+    ok: true,
+    online: onlineCount,
+    users,
+    banned
+  });
 });
 
-
-});
 
 // ip ban
 app.post("/admin/api/ban", requireAdmin, (req, res) => {
@@ -205,6 +203,42 @@ app.post("/admin/api/unban", requireAdmin, (req, res) => {
   unbanIP(String(ip).trim());
   res.json({ ok: true });
 });
+
+app.post("/admin/api/kick", requireAdmin, (req,res)=>{
+
+  const { socketId } = req.body;
+
+  const sock = io.sockets.sockets.get(socketId);
+
+  if(!sock){
+    return res.json({ ok:false });
+  }
+
+  sock.disconnect(true);
+
+  res.json({ ok:true });
+});
+
+app.post("/admin/api/ban-socket", requireAdmin, (req,res)=>{
+
+  const { socketId, minutes } = req.body;
+
+  const sock = io.sockets.sockets.get(socketId);
+
+  if(!sock){
+    return res.json({ ok:false });
+  }
+
+  const mins = Number(minutes||60);
+
+  banIP(sock.ip,"admin",mins*60000);
+
+  sock.disconnect(true);
+
+  res.json({ ok:true });
+});
+
+
 
 app.get("/admin/api/users", requireAdmin, (req, res) => {
 
@@ -336,10 +370,11 @@ io.on("connection", (socket) => {
   socket.ip = getIP(socket);
 
   liveUsers.set(socket.id, {
-  ip: socket.ip,
-  nickname: socket.nickname,
-  connectedAt: Date.now()
-});
+    ip: socket.ip,
+    nickname: socket.nickname,
+    strikes: strikeCount.get(socket.ip) || 0
+  });
+
 
 
   if (isBanned(socket.ip)) {
