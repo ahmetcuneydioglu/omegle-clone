@@ -10,6 +10,8 @@ dotenv.config();
 
 // admin'in izlediği oda
 let spyRoom = null;
+let adminSockets = new Set();
+
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -124,10 +126,6 @@ app.post("/admin/login", (req, res) => {
 
 
 
-app.get("/admin", requireAdmin, (req, res) => {
-  res.sendFile(path.join(__dirname, "public/admin/index.html"));
-});
-
 app.get("/admin/logout", (req, res) => {
 
   req.session.destroy(() => {
@@ -136,12 +134,6 @@ app.get("/admin/logout", (req, res) => {
 
 });
 
-
-app.get("/admin/logout", (req,res)=>{
-  req.session.destroy(()=>{
-    res.redirect("/admin/login.html");
-  });
-});
 
 // ================= ADMIN PANEL =================
 
@@ -320,19 +312,9 @@ io.on("connection",(socket)=>{
     });
 
     // ADMIN SPY
-      if (
-        spyRoom &&
-        (
-          spyRoom.a === socket.id ||
-          spyRoom.b === socket.id
-        )
-      ) {
-        io.emit("admin-spy", {
-          from: socket.nickname,
-          text: msg,
-          room: spyRoom
-        });
-      }
+     for (const id of adminSockets) {
+  io.to(id).emit("admin-spy", data);
+}
 
 
   });
@@ -378,6 +360,10 @@ io.on("connection",(socket)=>{
     if(p) enqueue(p);
   });
 
+  if (socket.handshake.query.admin === "1") {
+    adminSockets.add(socket.id);
+  }
+
   // DISCONNECT
   socket.on("disconnect",()=>{
 
@@ -397,6 +383,8 @@ io.on("connection",(socket)=>{
       p.emit("partnerDisconnected");
       enqueue(p);
     }
+    adminSockets.delete(socket.id);
+
   });
 });
 
