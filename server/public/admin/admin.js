@@ -108,3 +108,56 @@ load().catch((e) => {
   console.error(e);
   alert("Admin API erişimi yok. Token yanlış olabilir veya ENV eksik.");
 });
+
+async function loadUsers() {
+
+  const res = await fetch("/admin/api/users");
+  const data = await res.json();
+
+  const box = document.getElementById("userList");
+  box.innerHTML = "";
+
+  data.users.forEach(u => {
+
+    const div = document.createElement("div");
+
+    div.className =
+      "bg-gray-900 p-2 rounded flex justify-between items-center";
+
+    div.innerHTML = `
+      <div>
+        <b>${u.nickname}</b><br>
+        <span class="text-xs text-gray-400">${u.ip}</span><br>
+        <span class="text-xs">Strike: ${u.strikes}</span>
+      </div>
+
+      <div class="flex gap-1">
+        <button class="kick bg-yellow-600 px-2 rounded">Kick</button>
+        <button class="ban bg-red-600 px-2 rounded">Ban</button>
+      </div>
+    `;
+
+    div.querySelector(".kick").onclick = async () => {
+      await fetch("/admin/api/kick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: u.id })
+      });
+    };
+
+    div.querySelector(".ban").onclick = async () => {
+      await fetch("/admin/api/ban-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: u.id })
+      });
+    };
+
+    box.appendChild(div);
+  });
+}
+
+
+setInterval(loadUsers, 3000);
+loadUsers();
+

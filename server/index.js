@@ -4,11 +4,16 @@ import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import session from "express-session";
+
+
 
 dotenv.config();
+
+// socket.id => user info
+const liveUsers = new Map();
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +21,19 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
+
+app.use(session({
+  name: "admin-session",
+  secret: process.env.SESSION_SECRET || "devsecret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // HTTPS olunca true yapacağız
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 2 // 2 saat
+  }
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -49,6 +67,15 @@ function getIP(socket) {
     "unknown";
   return ip;
 }
+
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.admin) {
+    return next();
+  }
+
+  res.redirect("/admin/login.html");
+}
+
 
 function isBanned(ip) {
   const ban = bannedIPs.get(ip);
@@ -84,6 +111,10 @@ function addStrike(targetSocket, reason) {
     );
     targetSocket.disconnect(true);
   }
+
+  const user = liveUsers.get(targetSocket.id);
+  if (user) user.strikes = count;
+
 }
 
 function isSpamming(socket) {
@@ -106,29 +137,26 @@ const io = new Server(server, {
   pingInterval: 25000,
 });
 
-// ====== STATIC ======
-app.use(express.static(path.join(__dirname, "public")));
-app.use("/admin", adminAuth);
 
-
-// ====== ADMIN AUTH MIDDLEWARE ======
-function requireAdmin(req, res, next) {
-  const token =
-    req.headers["x-admin-token"] ||
-    req.query.token ||
-    req.headers.authorization?.replace("Bearer ", "");
-
-  if (token !== ADMIN_TOKEN) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
-  }
-  next();
-}
 
 // ====== ADMIN ROUTES (ÖNEMLİ: static'ten SONRA da çalışır) ======
-// /admin -> admin panel HTML
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin", "index.html"));
+
+app.get("/admin", requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, "public/admin/index.html"));
 });
+
+
+
+app.get("/admin/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/admin/login.html");
+  });
+});
+
+
+// ====== STATIC ======
+app.use(express.static(path.join(__dirname, "public")));
+
 
 // /admin/api/stats -> online + banned list
 app.get("/admin/api/stats", requireAdmin, (req, res) => {
@@ -168,33 +196,65 @@ app.post("/admin/api/unban", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/admin/api/users", requireAdmin, (req, res) => {
+
+  const list = [...liveUsers.values()];
+
+  res.json({
+    ok: true,
+    users: list
+  });
+});
+
+
+app.post("/admin/api/kick", requireAdmin, (req, res) => {
+
+  const { id } = req.body;
+
+  const socket = io.sockets.sockets.get(id);
+
+  if (!socket) return res.json({ ok: false });
+
+  socket.disconnect(true);
+
+  res.json({ ok: true });
+});
+
+
+app.post("/admin/api/ban-user", requireAdmin, (req, res) => {
+
+  const { id } = req.body;
+
+  const socket = io.sockets.sockets.get(id);
+
+  if (!socket) return res.json({ ok: false });
+
+  banIP(socket.ip, "admin-ban", 60 * 60 * 1000);
+  socket.disconnect(true);
+
+  res.json({ ok: true });
+});
+
+
+
+// Admin login API
 app.post("/admin/login", async (req, res) => {
+
   const { username, password } = req.body;
 
-  if (username !== adminUser.username) {
-    return res.status(401).json({ error: "Hatalı kullanıcı" });
+  if (
+    username !== process.env.ADMIN_USER ||
+    password !== process.env.ADMIN_PASS
+  ) {
+    return res.status(401).json({ error: "Hatalı giriş" });
   }
 
-  const ok = await bcrypt.compare(password, adminUser.passwordHash);
-
-  if (!ok) {
-    return res.status(401).json({ error: "Hatalı şifre" });
-  }
-
-  const token = jwt.sign(
-    { role: "admin" },
-    process.env.JWT_SECRET,
-    { expiresIn: "2h" }
-  );
-
-  res.cookie("admin_token", token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "strict"
-  });
+  req.session.admin = true;
 
   res.json({ success: true });
 });
+
+
 
 
 // ====== MATCHING ======
@@ -244,6 +304,13 @@ function enqueue(socket) {
     socket.partner = other;
     other.partner = socket;
 
+    if (liveUsers.has(socket.id))
+      liveUsers.get(socket.id).partner = other.id;
+
+      if (liveUsers.has(other.id))
+      liveUsers.get(other.id).partner = socket.id;
+
+
     // waitingUser olan initiator olsun
     other.emit("matched", true);
     socket.emit("matched", false);
@@ -255,6 +322,15 @@ function enqueue(socket) {
 }
 
 io.on("connection", (socket) => {
+
+  liveUsers.set(socket.id, {
+  id: socket.id,
+  ip: socket.ip,
+  nickname: socket.nickname,
+  partner: null,
+  strikes: 0
+});
+
   socket.ip = getIP(socket);
 
   if (isBanned(socket.ip)) {
@@ -343,8 +419,12 @@ io.on("connection", (socket) => {
       if (waitingUser && waitingUser.id === partner.id) waitingUser = null;
       enqueue(partner);
     }
+
+    liveUsers.delete(socket.id);
+
   });
 });
+
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log("Server running on port", PORT));
