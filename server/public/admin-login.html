@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Login</title>
+</head>
+<body style="background:#0f172a;color:white;display:flex;justify-content:center;align-items:center;height:100vh">
+
+<div>
+  <h2>Admin Giriş</h2>
+
+  <input id="user" placeholder="Kullanıcı"><br><br>
+  <input id="pass" type="password" placeholder="Şifre"><br><br>
+
+  <button onclick="login()">Giriş</button>
+
+  <p id="msg"></p>
+</div>
+
+<script>
+async function login() {
+  const res = await fetch("/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: user.value,
+      password: pass.value
+    })
+  });
+
+  if (res.ok) {
+    location.href = "/admin";
+  } else {
+    msg.innerText = "Hatalı giriş!";
+  }
+}
+</script>
+
+</body>
+</html>

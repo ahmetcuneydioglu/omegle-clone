@@ -4,10 +4,18 @@ import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
 
+import session from "express-session";
+import bcrypt from "bcrypt";
+
+
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "123456";
 const adminSessions = new Set();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const ADMIN_USER = process.env.ADMIN_USER || "ahmet";
+const ADMIN_PASS = process.env.ADMIN_PASS || "Ahmet263271";
+
 
 const app = express();
 const server = http.createServer(app);
@@ -94,6 +102,18 @@ function containsBannedWord(msg) {
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
+
+app.use(
+  session({
+    secret: "supersecretkey123",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false // https olunca true yapacağız
+    }
+  })
+);
+
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -306,19 +326,19 @@ app.get("/admin/unban", (req, res) => {
 });
 
 
-app.post("/admin/login", express.json(), (req, res) => {
+app.post("/admin/login", express.json(), async (req, res) => {
+  const { username, password } = req.body;
 
-  const { password } = req.body;
-
-  if (password !== ADMIN_PASSWORD) {
-    return res.status(401).json({ success: false });
+  if (username !== ADMIN_USER) {
+    return res.status(401).json({ error: "Hatalı giriş" });
   }
 
-  const token = Math.random().toString(36).slice(2);
+  if (password !== ADMIN_PASS) {
+    return res.status(401).json({ error: "Hatalı giriş" });
+  }
 
-  adminSessions.add(token);
-
-  res.json({ success: true, token });
+  req.session.admin = true;
+  res.json({ success: true });
 });
 
 
@@ -326,6 +346,13 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public/admin/index.html"));
+});
+
+app.get("/admin", (req, res, next) => {
+  if (!req.session.admin) {
+    return res.redirect("/admin-login.html");
+  }
+  next();
 });
 
 

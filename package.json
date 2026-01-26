@@ -1,6 +1,8 @@
 {
   "dependencies": {
-    "agora-rtc-sdk-ng": "^4.24.2"
+    "agora-rtc-sdk-ng": "^4.24.2",
+    "bcrypt": "^6.0.0",
+    "express-session": "^1.19.0"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.18",
