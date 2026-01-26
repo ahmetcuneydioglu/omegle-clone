@@ -1,26 +1,110 @@
-const socket = io();
-
-const online = document.getElementById("online");
-const bans = document.getElementById("bans");
-const refresh = document.getElementById("refresh");
-
-function load() {
-  socket.emit("admin:getData");
+// Token: Panel açılınca bir kere soralım, localStorage'a kaydedelim
+let token = localStorage.getItem("ADMIN_TOKEN");
+if (!token) {
+  token = prompt("Admin Token gir:");
+  if (token) localStorage.setItem("ADMIN_TOKEN", token);
 }
 
-refresh.onclick = load;
+const elOnline = document.getElementById("online");
+const elList = document.getElementById("bannedList");
+const btnRefresh = document.getElementById("refresh");
 
-socket.on("admin:data", (data) => {
+const ip = document.getElementById("ip");
+const minutes = document.getElementById("minutes");
+const reason = document.getElementById("reason");
+const banBtn = document.getElementById("banBtn");
+const unbanBtn = document.getElementById("unbanBtn");
 
-  online.innerText = data.online;
-
-  bans.innerHTML = "";
-
-  data.bans.forEach(ip => {
-    const li = document.createElement("li");
-    li.innerText = ip;
-    bans.appendChild(li);
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-token": token || "",
+      ...(options.headers || {}),
+    },
   });
-});
 
-load();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "API error");
+  return data;
+}
+
+function fmtMs(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  const ss = s % 60;
+  if (h > 0) return `${h}sa ${mm}dk`;
+  if (m > 0) return `${m}dk ${ss}sn`;
+  return `${ss}sn`;
+}
+
+async function load() {
+  const data = await api("/admin/api/stats");
+  elOnline.textContent = data.online;
+
+  elList.innerHTML = "";
+  if (!data.banned || data.banned.length === 0) {
+    elList.innerHTML = `<div class="text-slate-400">Banlı IP yok.</div>`;
+    return;
+  }
+
+  for (const b of data.banned) {
+    const row = document.createElement("div");
+    row.className =
+      "bg-slate-900/70 border border-slate-700 rounded-lg p-3 flex items-start gap-3";
+
+    row.innerHTML = `
+      <div class="flex-1">
+        <div class="font-semibold">${b.ip}</div>
+        <div class="text-slate-400 text-xs">Sebep: ${b.reason || "-"}</div>
+        <div class="text-slate-400 text-xs">Kalan: ${fmtMs(b.remainingMs || 0)}</div>
+      </div>
+      <button class="unbanOne bg-emerald-600 hover:bg-emerald-700 px-3 py-2 rounded-lg text-xs">Unban</button>
+    `;
+
+    row.querySelector(".unbanOne").onclick = async () => {
+      await api("/admin/api/unban", {
+        method: "POST",
+        body: JSON.stringify({ ip: b.ip }),
+      });
+      await load();
+    };
+
+    elList.appendChild(row);
+  }
+}
+
+btnRefresh.onclick = () => load();
+
+banBtn.onclick = async () => {
+  if (!ip.value.trim()) return alert("IP gir");
+  const mins = minutes.value.trim() ? Number(minutes.value.trim()) : 60;
+
+  await api("/admin/api/ban", {
+    method: "POST",
+    body: JSON.stringify({
+      ip: ip.value.trim(),
+      minutes: isNaN(mins) ? 60 : mins,
+      reason: reason.value.trim(),
+    }),
+  });
+
+  await load();
+};
+
+unbanBtn.onclick = async () => {
+  if (!ip.value.trim()) return alert("IP gir");
+  await api("/admin/api/unban", {
+    method: "POST",
+    body: JSON.stringify({ ip: ip.value.trim() }),
+  });
+  await load();
+};
+
+load().catch((e) => {
+  console.error(e);
+  alert("Admin API erişimi yok. Token yanlış olabilir veya ENV eksik.");
+});
