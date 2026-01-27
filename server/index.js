@@ -12,6 +12,8 @@ dotenv.config();
 let spyRoom = null;
 let adminSockets = new Set();
 
+// Abuse score: ip => score
+const abuseScore = new Map();
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,6 +84,29 @@ function isBanned(ip) {
   return true;
 }
 
+function addAbuse(ip, point, reason = "") {
+
+  const current = abuseScore.get(ip) || 0;
+  const next = current + point;
+
+  abuseScore.set(ip, next);
+
+  console.log("ABUSE", ip, next, reason);
+
+  return next;
+}
+
+function reduceAbuse(ip, point = 1) {
+
+  const current = abuseScore.get(ip) || 0;
+  const next = Math.max(0, current - point);
+
+  abuseScore.set(ip, next);
+
+  return next;
+}
+
+
 function addStrike(ip) {
   const n = (strikeCount.get(ip) || 0) + 1;
   strikeCount.set(ip, n);
@@ -150,7 +175,9 @@ app.get("/admin/api/stats", requireAdmin, (req,res)=>{
     id,
     ip: u.ip,
     nickname: u.nickname,
-    strikes: strikeCount.get(u.ip) || 0
+    strikes: strikeCount.get(u.ip) || 0,
+    abuse: abuseScore.get(u.ip) || 0
+
   }));
 
   const banned = Array.from(bannedIPs.entries()).map(([ip,info])=>({
@@ -309,35 +336,81 @@ io.on("connection",(socket)=>{
   // MESSAGE
   socket.on("message",(msg)=>{
 
-    if(!socket.partner) return;
+  if(!socket.partner) return;
 
-    socket.partner.emit("message",{
+  // Spam kontrol
+  const now = Date.now();
+  if (!socket.lastMsg) socket.lastMsg = 0;
+
+  if (now - socket.lastMsg < 700) {
+    const s = addAbuse(socket.ip, 1, "spam");
+
+    if (s >= 8) {
+      socket.disconnect(true);
+      return;
+    }
+  }
+
+  socket.lastMsg = now;
+
+  // Küfür kontrol
+  const badWords = ["amk","sik","piç","orospu","yarrak"];
+
+  if (badWords.some(w => msg.toLowerCase().includes(w))) {
+
+    const s = addAbuse(socket.ip, 3, "badword");
+
+    socket.emit("system","⚠️ Uygunsuz mesaj!");
+
+    if (s >= 12) {
+      banIP(socket.ip,"abuse",3600000);
+      socket.disconnect(true);
+      return;
+    }
+
+    return;
+  }
+
+  // Normal mesaj → puan düşür
+  reduceAbuse(socket.ip,1);
+
+  // Mesaj gönder
+  socket.partner.emit("message",{
+    from: socket.nickname,
+    text: msg
+  });
+
+
+  // Spy Mode
+  if (
+    spyRoom &&
+    (spyRoom.a === socket.id || spyRoom.b === socket.id)
+  ) {
+    io.to("admin-room").emit("admin-spy", {
       from: socket.nickname,
       text: msg
     });
+  }
 
-    // ADMIN SPY
-     if (
-        spyRoom &&
-        (spyRoom.a === socket.id || spyRoom.b === socket.id)
-      ) {
-        io.to("admin-room").emit("admin-spy", {
-          from: socket.nickname,
-          text: msg
-        });
-      }
+});
 
-
-
-  });
 
   // REPORT
   socket.on("report",()=>{
 
-    if(!socket.partner) return;
+  if(!socket.partner) return;
 
-    addStrike(socket.partner.ip);
-  });
+  const s = addAbuse(socket.partner.ip,2,"report");
+
+  if (s >= 8) {
+    socket.partner.disconnect(true);
+  }
+
+  if (s >= 12) {
+    banIP(socket.partner.ip,"report abuse",3600000);
+  }
+});
+
 
   // WEBRTC
   socket.on("offer",(d)=>{
