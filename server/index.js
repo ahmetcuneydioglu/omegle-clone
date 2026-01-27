@@ -372,18 +372,36 @@ io.on("connection",(socket)=>{
 
   socket.on("reportUser", () => {
 
-  const ip = socket.ip;
+  if (!socket.partner) return;
 
-  if (!ip) return;
+  // Karşı tarafın abuse puanını artır
+  const s = addAbuse(socket.partner.ip, 2, "report");
 
-  if (bannedIPs.has(ip)) return; // zaten banlıysa tekrar banlama
+  // Uyarı gönder
+  socket.partner.emit("system", "⚠️ Çok fazla şikayet aldın!");
 
-  bannedIPs.set(ip, {
-    reason: "Report",
-    until: Date.now() + 60 * 60 * 1000
-  });
+  // Kick
+  if (s >= 8) {
+    socket.partner.disconnect(true);
+  }
+
+  // Ban
+  if (s >= 12) {
+
+    banIP(socket.partner.ip, "report abuse", 60 * 60 * 1000);
+
+    socket.partner.emit("force-ban", {
+      until: bannedIPs.get(socket.partner.ip).until,
+      reason: "Çok fazla report"
+    });
+
+    setTimeout(() => {
+      socket.partner.disconnect(true);
+    }, 200);
+  }
 
 });
+
 
 
   if (isBanned(socket.ip)) {
@@ -483,23 +501,6 @@ if (socket.handshake.query.admin === "1") {
     });
   }
 
-});
-
-
-  // REPORT
-  socket.on("report",()=>{
-
-  if(!socket.partner) return;
-
-  const s = addAbuse(socket.partner.ip,2,"report");
-
-  if (s >= 8) {
-    socket.partner.disconnect(true);
-  }
-
-  if (s >= 12) {
-    banIP(socket.partner.ip,"report abuse",3600000);
-  }
 });
 
 
