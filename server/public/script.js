@@ -127,6 +127,8 @@ socket.on("waiting", () => {
 
 /* MATCH */
 socket.on("matched", async (data) => {
+  reported = false;
+
   isInitiator = data === true;
   console.log("INITIATOR =", isInitiator);
 
@@ -234,6 +236,8 @@ skip.onclick = () => {
 };
 
 socket.on("partnerDisconnected", () => {
+  reported = false;
+
   stopVideo();
 
   messages.innerHTML = "";
