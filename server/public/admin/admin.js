@@ -225,17 +225,20 @@ document.addEventListener("DOMContentLoaded", bind);
 
 // ================= SPY SOCKET =================
 
-const spySocket = io();
+const spySocket = io({ query: { admin: "1" } });
 
 spySocket.on("admin-spy", data => {
 
   const box = document.getElementById("spyBox");
+
   if (!box) return;
 
-  const d = document.createElement("div");
+  const div = document.createElement("div");
 
-  d.innerText = `${data.from}: ${data.text}`;
+  div.innerText = `${data.from}: ${data.text}`;
 
-  box.appendChild(d);
+  box.appendChild(div);
+
   box.scrollTop = box.scrollHeight;
 });
+

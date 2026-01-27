@@ -280,6 +280,11 @@ function enqueue(socket){
 
 io.on("connection",(socket)=>{
 
+  if (socket.handshake.query.admin === "1") { 
+    socket.join("admin-room");
+    console.log("ADMIN CONNECTED:", socket.id);
+  }
+
   socket.ip = getIP(socket);
 
   if(isBanned(socket.ip)){
@@ -312,9 +317,16 @@ io.on("connection",(socket)=>{
     });
 
     // ADMIN SPY
-     for (const id of adminSockets) {
-  io.to(id).emit("admin-spy", data);
-}
+     if (
+        spyRoom &&
+        (spyRoom.a === socket.id || spyRoom.b === socket.id)
+      ) {
+        io.to("admin-room").emit("admin-spy", {
+          from: socket.nickname,
+          text: msg
+        });
+      }
+
 
 
   });
