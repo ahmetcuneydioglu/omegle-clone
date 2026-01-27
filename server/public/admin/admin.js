@@ -223,6 +223,13 @@ function bind() {
 
 document.addEventListener("DOMContentLoaded", bind);
 
+socket.on("banned", ()=>{
+
+  window.location.href = "/banned.html";
+
+});
+
+
 // ================= SPY SOCKET =================
 
 const spySocket = io({ query: { admin: "1" } });

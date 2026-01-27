@@ -55,6 +55,25 @@ const liveUsers = new Map(); // 👈 CANLI KULLANICILAR
 
 // ================= HELPERS =================
 
+function checkBan(req, res, next) {
+
+  const ip =
+    req.headers["x-forwarded-for"]?.split(",")[0] ||
+    req.socket.remoteAddress;
+
+  const ban = bannedIPs.get(ip);
+
+  if (!ban) return next();
+
+  if (ban.until < Date.now()) {
+    bannedIPs.delete(ip);
+    return next();
+  }
+
+  return res.redirect(`/banned.html?until=${ban.until}`);
+}
+
+
 function getIP(socket) {
   const xf = socket.handshake.headers["x-forwarded-for"];
   return (xf && xf.split(",")[0]) || socket.handshake.address;
@@ -129,6 +148,7 @@ function requireAdmin(req, res, next) {
 
 // ================= STATIC =================
 
+app.use(checkBan);
 app.use(express.static(path.join(__dirname, "public")));
 
 // ================= ADMIN LOGIN =================
@@ -181,10 +201,14 @@ app.get("/admin/api/stats", requireAdmin, (req,res)=>{
   }));
 
   const banned = Array.from(bannedIPs.entries()).map(([ip,info])=>({
-    ip,
-    reason: info.reason,
-    until: info.until
-  }));
+
+  ip,
+  reason: info.reason,
+  until: info.until,
+  remaining: Math.max(0, info.until - Date.now())
+
+}));
+
 
   res.json({
     ok:true,
@@ -307,12 +331,20 @@ function enqueue(socket){
 
 io.on("connection",(socket)=>{
 
-  if (socket.handshake.query.admin === "1") { 
+
+  socket.ip = getIP(socket);
+
+  if (isBanned(socket.ip)) {
+  socket.emit("banned");
+  socket.disconnect(true);
+  return;
+}
+
+if (socket.handshake.query.admin === "1") { 
     socket.join("admin-room");
     console.log("ADMIN CONNECTED:", socket.id);
   }
 
-  socket.ip = getIP(socket);
 
   if(isBanned(socket.ip)){
     socket.disconnect(true);
@@ -363,8 +395,9 @@ io.on("connection",(socket)=>{
     socket.emit("system","⚠️ Uygunsuz mesaj!");
 
     if (s >= 12) {
-      banIP(socket.ip,"abuse",3600000);
+      banIP(socket.ip,"abuse",60*60*1000);
       socket.disconnect(true);
+      console.log("BANNED:", socket.ip);
       return;
     }
 
