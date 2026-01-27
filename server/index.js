@@ -73,14 +73,15 @@ function checkBan(req, res, next) {
     req.headers["x-forwarded-for"]?.split(",")[0] ||
     req.socket.remoteAddress;
 
+
   const ban = bannedIPs.get(ip);
 
-  if (!ban) return next();
+if (!ban) return; // yoksa çık
 
-  if (ban.until < Date.now()) {
-    bannedIPs.delete(ip);
-    return next();
-  }
+if (ban.until < Date.now()) {
+  bannedIPs.delete(ip);
+}
+
 
   return res.redirect(`/banned.html?until=${ban.until}`);
 }
@@ -370,6 +371,22 @@ io.on("connection",(socket)=>{
 
 
   socket.ip = getIP(socket);
+
+  socket.on("reportUser", () => {
+
+  const ip = socket.ip;
+
+  if (!ip) return;
+
+  if (bannedIPs.has(ip)) return; // zaten banlıysa tekrar banlama
+
+  bannedIPs.set(ip, {
+    reason: "Report",
+    until: Date.now() + 60 * 60 * 1000
+  });
+
+});
+
 
   if (isBanned(socket.ip)) {
 

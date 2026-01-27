@@ -297,9 +297,14 @@ pauseBtn.onclick = () => {
 };
 
 
-reportBtn.onclick = () => {
-  if (!confirm("Bu kullanıcıyı rapor etmek istiyor musun?")) return;
+let reported = false;
 
-  socket.emit("report");
-  alert("Rapor gönderildi. Teşekkürler.");
-};
+    reportBtn.addEventListener("click", () => {
+
+      if (reported) return;
+
+      reported = true;
+
+      socket.emit("reportUser");
+
+});
