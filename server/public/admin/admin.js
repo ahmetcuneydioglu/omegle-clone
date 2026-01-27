@@ -227,6 +227,10 @@ document.addEventListener("DOMContentLoaded", bind);
 
 const spySocket = io({ query: { admin: "1" } });
 
+spySocket.on("connect", () => {
+  console.log("ADMIN SOCKET CONNECTED:", spySocket.id);
+});
+
 spySocket.on("admin-spy", data => {
 
   const box = document.getElementById("spyBox");
