@@ -353,8 +353,12 @@ function enqueue(socket){
     socket.partner = other;
     other.partner = socket;
 
-    other.emit("matched",true);
-    socket.emit("matched",false);
+    // Abuse sıfırla (yeni eşleşme temiz başlasın)
+    abuseScore.set(socket.ip, 0);
+    abuseScore.set(other.ip, 0);
+
+    other.emit("matched", true);
+    socket.emit("matched", false);
 
     return;
   }
@@ -362,6 +366,7 @@ function enqueue(socket){
   waitingUser = socket;
   socket.emit("waiting");
 }
+
 
 // ================= SOCKET EVENTS =================
 
@@ -374,33 +379,51 @@ io.on("connection",(socket)=>{
 
   if (!socket.partner) return;
 
-  // Karşı tarafın abuse puanını artır
-  const s = addAbuse(socket.partner.ip, 2, "report");
+  const target = socket.partner;
+  const ip = target.ip;
 
-  // Uyarı gönder
-  socket.partner.emit("system", "⚠️ Çok fazla şikayet aldın!");
+  // Abuse puanı artır
+  const score = addAbuse(ip, 3, "report");
+
+  console.log("REPORT:", ip, "score =", score);
+
+  // İlk uyarı
+  if (score >= 3 && score < 6) {
+
+    target.emit("system",
+      "⚠️ Şikayet alıyorsun. Kurallara dikkat et!"
+    );
+  }
 
   // Kick
-  if (s >= 8) {
-    socket.partner.disconnect(true);
+  if (score >= 6 && score < 9) {
+
+    target.emit("system",
+      "⛔ Çok fazla şikayet! Bağlantın kesiliyor."
+    );
+
+    setTimeout(() => {
+      target.disconnect(true);
+    }, 300);
   }
 
   // Ban
-  if (s >= 12) {
+  if (score >= 9) {
 
-    banIP(socket.partner.ip, "report abuse", 60 * 60 * 1000);
+    banIP(ip, "report abuse", 60 * 60 * 1000);
 
-    socket.partner.emit("force-ban", {
-      until: bannedIPs.get(socket.partner.ip).until,
-      reason: "Çok fazla report"
+    target.emit("force-ban", {
+      until: bannedIPs.get(ip).until,
+      reason: "Çok fazla şikayet"
     });
 
     setTimeout(() => {
-      socket.partner.disconnect(true);
-    }, 200);
+      target.disconnect(true);
+    }, 300);
   }
 
 });
+
 
 
 
