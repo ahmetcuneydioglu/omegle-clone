@@ -1,3 +1,5 @@
+// server/index.js
+
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -8,19 +10,18 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// admin'in izlediği oda
-let spyRoom = null;
-let adminSockets = new Set();
-
-// Abuse score: ip => score
-const abuseScore = new Map();
-
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server);
+
+let waitingUser = null;
+let onlineCount = 0;
+
+const bannedIPs = new Map();
+const liveUsers = new Map();
 
 // ================= MIDDLEWARE =================
 
@@ -29,45 +30,21 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
   name: "admin-session",
-  secret: process.env.SESSION_SECRET || "secret123",
+  secret: process.env.SESSION_SECRET || "secret",
   resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false,
-    maxAge: 1000 * 60 * 60 * 2
-  }
+  saveUninitialized: false
 }));
 
-// ================= SOCKET =================
-
-const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
-});
-
-// ================= GLOBAL =================
-
-let onlineCount = 0;
-let waitingUser = null;
-
-const bannedIPs = new Map();
-const strikeCount = new Map();
-const liveUsers = new Map(); // 👈 CANLI KULLANICILAR
-
-// ================= HELPERS =================
+// ================= BAN CHECK =================
 
 function checkBan(req, res, next) {
 
-  // Bu sayfalar ban kontrolünden muaf
-  const allowList = [
-    "/banned.html",
-    "/admin",
-    "/admin/login",
-    "/admin/logout"
-  ];
-
-  if (allowList.some(p => req.path.startsWith(p))) {
-    return next();
-  }
+  // Buralar serbest
+  if (
+    req.path.startsWith("/banned") ||
+    req.path.startsWith("/admin") ||
+    req.path.startsWith("/socket.io")
+  ) return next();
 
   const ip =
     req.headers["x-forwarded-for"]?.split(",")[0] ||
@@ -82,25 +59,24 @@ function checkBan(req, res, next) {
     return next();
   }
 
-  return res.redirect(`/banned.html?until=${ban.until}`);
+  res.redirect(`/banned.html?until=${ban.until}`);
 }
 
+app.use(checkBan);
+app.use(express.static(path.join(__dirname, "public")));
 
+// ================= HELPERS =================
 
 function getIP(socket) {
-  const xf = socket.handshake.headers["x-forwarded-for"];
-  return (xf && xf.split(",")[0]) || socket.handshake.address;
+  return socket.handshake.headers["x-forwarded-for"]?.split(",")[0]
+    || socket.handshake.address;
 }
 
-function banIP(ip, reason = "admin", ms = 3600000) {
+function banIP(ip, reason, ms) {
   bannedIPs.set(ip, {
     reason,
     until: Date.now() + ms
   });
-}
-
-function unbanIP(ip) {
-  bannedIPs.delete(ip);
 }
 
 function isBanned(ip) {
@@ -116,62 +92,16 @@ function isBanned(ip) {
   return true;
 }
 
-function addAbuse(ip, point, reason = "") {
-
-  const current = abuseScore.get(ip) || 0;
-  const next = current + point;
-
-  abuseScore.set(ip, next);
-
-  console.log("ABUSE", ip, next, reason);
-
-  return next;
-}
-
-function reduceAbuse(ip, point = 1) {
-
-  const current = abuseScore.get(ip) || 0;
-  const next = Math.max(0, current - point);
-
-  abuseScore.set(ip, next);
-
-  return next;
-}
-
-
-function addStrike(ip) {
-  const until = Date.now() + 60*60*1000;
-
-    banIP(ip,"auto",60*60*1000);
-
-    socket.emit("force-ban", {
-      until,
-      reason: "Kural ihlali"
-    });
-
-    setTimeout(()=>{
-      socket.disconnect(true);
-    },200);
-
-}
-
-function generateNick() {
+function genNick() {
   return "Stranger#" + Math.floor(1000 + Math.random() * 9000);
 }
 
-// ================= ADMIN AUTH =================
+// ================= ADMIN =================
 
 function requireAdmin(req, res, next) {
   if (req.session.admin) return next();
   res.redirect("/admin/login.html");
 }
-
-// ================= STATIC =================
-
-app.use(checkBan);
-app.use(express.static(path.join(__dirname, "public")));
-
-// ================= ADMIN LOGIN =================
 
 app.post("/admin/login", (req, res) => {
 
@@ -182,171 +112,81 @@ app.post("/admin/login", (req, res) => {
     password === process.env.ADMIN_PASS
   ) {
     req.session.admin = true;
-
-    return res.json({ success: true });
+    return res.json({ ok: true });
   }
 
-  res.status(401).json({ error: "Hatalı giriş" });
+  res.status(401).json({ ok: false });
 });
 
-
-
 app.get("/admin/logout", (req, res) => {
-
   req.session.destroy(() => {
     res.redirect("/admin/login.html");
   });
-
 });
 
-
-// ================= ADMIN PANEL =================
-
-app.get("/admin", requireAdmin, (req,res)=>{
-  res.sendFile(path.join(__dirname,"public/admin/index.html"));
+app.get("/admin", requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, "public/admin/index.html"));
 });
 
 // ================= ADMIN API =================
 
-// STATISTICS
-app.get("/admin/api/stats", requireAdmin, (req,res)=>{
+app.get("/admin/api/stats", requireAdmin, (req, res) => {
 
-  const users = Array.from(liveUsers.entries()).map(([id,u])=>({
+  const users = [...liveUsers.entries()].map(([id, u]) => ({
     id,
     ip: u.ip,
-    nickname: u.nickname,
-    strikes: strikeCount.get(u.ip) || 0,
-    abuse: abuseScore.get(u.ip) || 0
-
+    nickname: u.nickname
   }));
 
-  const banned = Array.from(bannedIPs.entries()).map(([ip,info])=>({
-
-  ip,
-  reason: info.reason,
-  until: info.until,
-  remaining: Math.max(0, info.until - Date.now())
-
-}));
-
+  const banned = [...bannedIPs.entries()].map(([ip, b]) => ({
+    ip,
+    reason: b.reason,
+    until: b.until
+  }));
 
   res.json({
-    ok:true,
     online: onlineCount,
     users,
     banned
   });
 });
 
-app.post("/admin/api/spy", requireAdmin, (req, res) => {
+app.post("/admin/api/kick", requireAdmin, (req, res) => {
 
-  const { socketId } = req.body;
+  const sock = io.sockets.sockets.get(req.body.socketId);
+  if (!sock) return res.json({ ok: false });
 
-  const sock = io.sockets.sockets.get(socketId);
-
-  if (!sock || !sock.partner) {
-    return res.json({ ok: false });
-  }
-
-  // Odayı işaretle
-  spyRoom = {
-    a: sock.id,
-    b: sock.partner.id
-  };
+  sock.emit("force-kick");
+  sock.disconnect(true);
 
   res.json({ ok: true });
 });
 
+app.post("/admin/api/ban-socket", requireAdmin, (req, res) => {
 
+  const sock = io.sockets.sockets.get(req.body.socketId);
+  if (!sock) return res.json({ ok: false });
 
-// KICK
-app.post("/admin/api/kick", requireAdmin, (req,res)=>{
+  const mins = Number(req.body.minutes || 60);
 
-  const { socketId } = req.body;
+  banIP(sock.ip, "admin", mins * 60000);
 
-  const sock = io.sockets.sockets.get(socketId);
+  sock.emit("force-ban", {
+    until: bannedIPs.get(sock.ip).until
+  });
 
-  if(!sock) return res.json({ ok:false });
-
-  
-  sock.emit("force-ban",{
-  until: bannedIPs.get(sock.ip).until,
-  reason: "Admin tarafından"
-});
-
-setTimeout(()=>{
-  sock.emit("force-kick");
   sock.disconnect(true);
-},200);
 
-  res.json({ ok:true });
-});
-
-
-// BAN SOCKET
-app.post("/admin/api/ban-socket", requireAdmin, (req,res)=>{
-
-  const { socketId, minutes } = req.body;
-
-  const sock = io.sockets.sockets.get(socketId);
-
-  if(!sock) return res.json({ ok:false });
-
-  const mins = Number(minutes || 60);
-
-  banIP(sock.ip,"admin",mins*60000);
-
-  sock.emit("force-ban",{
-  until: bannedIPs.get(sock.ip).until,
-  reason: "Admin tarafından"
-});
-
-setTimeout(()=>{
-  sock.disconnect(true);
-},200);
-
-
-  res.json({ ok:true });
-});
-
-
-// MANUAL IP BAN
-app.post("/admin/api/ban", requireAdmin, (req,res)=>{
-
-  const { ip, minutes } = req.body;
-
-  if(!ip) return res.json({ ok:false });
-
-  banIP(ip,"manual",Number(minutes||60)*60000);
-
-  res.json({ ok:true });
-});
-
-
-// UNBAN
-app.post("/admin/api/unban", requireAdmin, (req,res)=>{
-
-  const { ip } = req.body;
-
-  if(!ip) return res.json({ ok:false });
-
-  unbanIP(ip);
-
-  res.json({ ok:true });
+  res.json({ ok: true });
 });
 
 // ================= MATCHING =================
 
-function enqueue(socket){
+function enqueue(socket) {
 
-  if(!socket || socket.disconnected) return;
-  if(socket.partner) return;
+  if (socket.partner) return;
 
-  if(waitingUser && (waitingUser.disconnected || waitingUser.partner)){
-    waitingUser = null;
-  }
-
-  if(waitingUser){
+  if (waitingUser) {
 
     const other = waitingUser;
     waitingUser = null;
@@ -354,8 +194,8 @@ function enqueue(socket){
     socket.partner = other;
     other.partner = socket;
 
-    other.emit("matched",true);
-    socket.emit("matched",false);
+    other.emit("matched", true);
+    socket.emit("matched", false);
 
     return;
   }
@@ -364,44 +204,29 @@ function enqueue(socket){
   socket.emit("waiting");
 }
 
-// ================= SOCKET EVENTS =================
+// ================= SOCKET =================
 
-io.on("connection",(socket)=>{
-
+io.on("connection", socket => {
 
   socket.ip = getIP(socket);
 
+  // BANLI GELİRSE
   if (isBanned(socket.ip)) {
 
-  socket.emit("banned", {
-  until: bannedIPs.get(socket.ip)?.until
+    socket.emit("force-ban", {
+      until: bannedIPs.get(socket.ip).until
     });
 
-    setTimeout(()=>{
-      socket.disconnect(true);
-    },100);
-
-}
-
-if (socket.handshake.query.admin === "1") { 
-    socket.join("admin-room");
-    console.log("ADMIN CONNECTED:", socket.id);
+    return socket.disconnect(true);
   }
 
-
-  if(isBanned(socket.ip)){
-    socket.disconnect(true);
-    return;
-  }
-
-  socket.nickname = generateNick();
+  socket.nickname = genNick();
   socket.partner = null;
 
   onlineCount++;
-  io.emit("onlineCount",onlineCount);
+  io.emit("onlineCount", onlineCount);
 
-  // CANLI LİSTEYE EKLE
-  liveUsers.set(socket.id,{
+  liveUsers.set(socket.id, {
     ip: socket.ip,
     nickname: socket.nickname
   });
@@ -409,162 +234,33 @@ if (socket.handshake.query.admin === "1") {
   enqueue(socket);
 
   // MESSAGE
-  socket.on("message",(msg)=>{
+  socket.on("message", msg => {
 
-  if(!socket.partner) return;
+    if (!socket.partner) return;
 
-  // Spam kontrol
-  const now = Date.now();
-  if (!socket.lastMsg) socket.lastMsg = 0;
-
-  if (now - socket.lastMsg < 700) {
-    const s = addAbuse(socket.ip, 1, "spam");
-
-    if (s >= 8) {
-      socket.disconnect(true);
-      return;
-    }
-  }
-
-  socket.lastMsg = now;
-
-  // Küfür kontrol
-  const badWords = ["amk","sik","piç","orospu","yarrak"];
-
-  if (badWords.some(w => msg.toLowerCase().includes(w))) {
-
-    const s = addAbuse(socket.ip, 3, "badword");
-
-    socket.emit("system","⚠️ Uygunsuz mesaj!");
-
-    if (s >= 12) {
-      banIP(socket.ip,"abuse",60*60*1000);
-      socket.disconnect(true);
-      console.log("BANNED:", socket.ip);
-      return;
-    }
-
-    return;
-  }
-
-  // Normal mesaj → puan düşür
-  reduceAbuse(socket.ip,1);
-
-  // Mesaj gönder
-  socket.partner.emit("message",{
-    from: socket.nickname,
-    text: msg
-  });
-
-
-  // Spy Mode
-  if (
-    spyRoom &&
-    (spyRoom.a === socket.id || spyRoom.b === socket.id)
-  ) {
-    io.to("admin-room").emit("admin-spy", {
+    socket.partner.emit("message", {
       from: socket.nickname,
       text: msg
     });
-  }
-
-});
-
-
-  // REPORT
-  socket.on("report",()=>{
-
-  if(!socket.partner) return;
-
-  const s = addAbuse(socket.partner.ip,2,"report");
-
-  if (s >= 8) {
-    socket.partner.disconnect(true);
-  }
-
-  if (s >= 12) {
-    banIP(socket.partner.ip,"report abuse",3600000);
-  }
-});
-
-
-socket.on("force-ban", data => {
-
-  const until = data?.until || "";
-  const reason = data?.reason || "";
-
-  window.location.href =
-    "/banned.html?until=" + until + "&reason=" + encodeURIComponent(reason);
-
-});
-
-
-socket.on("force-kick", ()=>{
-
-  window.location.href = "/kicked.html";
-
-});
-
-
-
-  // WEBRTC
-  socket.on("offer",(d)=>{
-    if(socket.partner) socket.partner.emit("offer",d);
   });
-
-  socket.on("answer",(d)=>{
-    if(socket.partner) socket.partner.emit("answer",d);
-  });
-
-  socket.on("ice-candidate",(d)=>{
-    if(socket.partner) socket.partner.emit("ice-candidate",d);
-  });
-
-  // SKIP
-  socket.on("skip",()=>{
-
-    const p = socket.partner;
-
-    if(p){
-      p.partner = null;
-      p.emit("partnerDisconnected");
-    }
-
-    socket.partner = null;
-
-    if(waitingUser === socket || waitingUser === p){
-      waitingUser = null;
-    }
-
-    enqueue(socket);
-    if(p) enqueue(p);
-  });
-
-  if (socket.handshake.query.admin === "1") {
-    adminSockets.add(socket.id);
-  }
 
   // DISCONNECT
-  socket.on("disconnect",()=>{
+  socket.on("disconnect", () => {
 
     onlineCount--;
-    io.emit("onlineCount",onlineCount);
+    io.emit("onlineCount", onlineCount);
 
     liveUsers.delete(socket.id);
 
-    if(waitingUser === socket){
-      waitingUser = null;
-    }
+    if (waitingUser === socket) waitingUser = null;
 
     const p = socket.partner;
 
-    if(p){
+    if (p) {
       p.partner = null;
       p.emit("partnerDisconnected");
       enqueue(p);
     }
-    adminSockets.delete(socket.id);
-
   });
 });
 
@@ -572,6 +268,6 @@ socket.on("force-kick", ()=>{
 
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT,()=>{
-  console.log("Server running:",PORT);
+server.listen(PORT, () => {
+  console.log("Server running:", PORT);
 });
