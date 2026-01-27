@@ -140,12 +140,19 @@ function reduceAbuse(ip, point = 1) {
 
 
 function addStrike(ip) {
-  const n = (strikeCount.get(ip) || 0) + 1;
-  strikeCount.set(ip, n);
+  const until = Date.now() + 60*60*1000;
 
-  if (n >= 3) {
-    banIP(ip, "auto");
-  }
+    banIP(ip,"auto",60*60*1000);
+
+    socket.emit("force-ban", {
+      until,
+      reason: "Kural ihlali"
+    });
+
+    setTimeout(()=>{
+      socket.disconnect(true);
+    },200);
+
 }
 
 function generateNick() {
@@ -261,7 +268,16 @@ app.post("/admin/api/kick", requireAdmin, (req,res)=>{
 
   if(!sock) return res.json({ ok:false });
 
+  
+  sock.emit("force-ban",{
+  until: bannedIPs.get(sock.ip).until,
+  reason: "Admin tarafından"
+});
+
+setTimeout(()=>{
+  sock.emit("force-kick");
   sock.disconnect(true);
+},200);
 
   res.json({ ok:true });
 });
@@ -280,7 +296,15 @@ app.post("/admin/api/ban-socket", requireAdmin, (req,res)=>{
 
   banIP(sock.ip,"admin",mins*60000);
 
+  sock.emit("force-ban",{
+  until: bannedIPs.get(sock.ip).until,
+  reason: "Admin tarafından"
+});
+
+setTimeout(()=>{
   sock.disconnect(true);
+},200);
+
 
   res.json({ ok:true });
 });
@@ -462,6 +486,25 @@ if (socket.handshake.query.admin === "1") {
     banIP(socket.partner.ip,"report abuse",3600000);
   }
 });
+
+
+socket.on("force-ban", data => {
+
+  const until = data?.until || "";
+  const reason = data?.reason || "";
+
+  window.location.href =
+    "/banned.html?until=" + until + "&reason=" + encodeURIComponent(reason);
+
+});
+
+
+socket.on("force-kick", ()=>{
+
+  window.location.href = "/kicked.html";
+
+});
+
 
 
   // WEBRTC
