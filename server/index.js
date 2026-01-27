@@ -57,7 +57,6 @@ const liveUsers = new Map(); // 👈 CANLI KULLANICILAR
 
 function checkBan(req, res, next) {
 
-  // Bu sayfalar ban kontrolünden muaf
   const allowList = [
     "/banned.html",
     "/admin",
@@ -73,18 +72,21 @@ function checkBan(req, res, next) {
     req.headers["x-forwarded-for"]?.split(",")[0] ||
     req.socket.remoteAddress;
 
-
   const ban = bannedIPs.get(ip);
 
-if (!ban) return; // yoksa çık
+  // Ban yoksa devam et
+  if (!ban) return next();
 
-if (ban.until < Date.now()) {
-  bannedIPs.delete(ip);
-}
+  // Süresi bitmişse sil, devam et
+  if (ban.until < Date.now()) {
+    bannedIPs.delete(ip);
+    return next();
+  }
 
-
+  // Aktif ban varsa yönlendir
   return res.redirect(`/banned.html?until=${ban.until}`);
 }
+
 
 
 
@@ -145,10 +147,6 @@ function addStrike(ip) {
 
     banIP(ip,"auto",60*60*1000);
 
-    socket.emit("force-ban", {
-      until,
-      reason: "Kural ihlali"
-    });
 
     setTimeout(()=>{
       socket.disconnect(true);
@@ -504,23 +502,6 @@ if (socket.handshake.query.admin === "1") {
   }
 });
 
-
-socket.on("force-ban", data => {
-
-  const until = data?.until || "";
-  const reason = data?.reason || "";
-
-  window.location.href =
-    "/banned.html?until=" + until + "&reason=" + encodeURIComponent(reason);
-
-});
-
-
-socket.on("force-kick", ()=>{
-
-  window.location.href = "/kicked.html";
-
-});
 
 
 

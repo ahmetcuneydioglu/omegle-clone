@@ -308,3 +308,21 @@ let reported = false;
       socket.emit("reportUser");
 
 });
+
+
+socket.on("force-ban", data => {
+
+  const until = data?.until || "";
+  const reason = data?.reason || "";
+
+  window.location.href =
+    "/banned.html?until=" + until + "&reason=" + encodeURIComponent(reason);
+
+});
+
+
+socket.on("force-kick", ()=>{
+
+  window.location.href = "/kicked.html";
+
+});
