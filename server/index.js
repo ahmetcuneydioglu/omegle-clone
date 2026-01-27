@@ -57,6 +57,18 @@ const liveUsers = new Map(); // 👈 CANLI KULLANICILAR
 
 function checkBan(req, res, next) {
 
+  // Bu sayfalar ban kontrolünden muaf
+  const allowList = [
+    "/banned.html",
+    "/admin",
+    "/admin/login",
+    "/admin/logout"
+  ];
+
+  if (allowList.some(p => req.path.startsWith(p))) {
+    return next();
+  }
+
   const ip =
     req.headers["x-forwarded-for"]?.split(",")[0] ||
     req.socket.remoteAddress;
@@ -72,6 +84,7 @@ function checkBan(req, res, next) {
 
   return res.redirect(`/banned.html?until=${ban.until}`);
 }
+
 
 
 function getIP(socket) {
@@ -335,9 +348,15 @@ io.on("connection",(socket)=>{
   socket.ip = getIP(socket);
 
   if (isBanned(socket.ip)) {
-  socket.emit("banned");
-  socket.disconnect(true);
-  return;
+
+  socket.emit("banned", {
+  until: bannedIPs.get(socket.ip)?.until
+    });
+
+    setTimeout(()=>{
+      socket.disconnect(true);
+    },100);
+
 }
 
 if (socket.handshake.query.admin === "1") { 

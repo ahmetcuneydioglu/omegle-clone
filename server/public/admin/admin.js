@@ -223,11 +223,14 @@ function bind() {
 
 document.addEventListener("DOMContentLoaded", bind);
 
-socket.on("banned", ()=>{
+socket.on("banned",(data)=>{
 
-  window.location.href = "/banned.html";
+  const until = data?.until || "";
+
+  window.location.href = "/banned.html?until=" + until;
 
 });
+
 
 
 // ================= SPY SOCKET =================
