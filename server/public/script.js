@@ -64,7 +64,7 @@ const rtcConfig = {
 
 let previewStream = null;
 
-/* async function startPreview(){
+async function startPreview(){
 
   previewStream =
     await navigator.mediaDevices.getUserMedia({
@@ -73,7 +73,7 @@ let previewStream = null;
     });
 
   previewVideo.srcObject = previewStream;
-} */
+} 
 
 
 /* Kamera */
@@ -250,12 +250,18 @@ socket.on("ice-candidate", async (candidate) => {
 
 btnStart.onclick = () => {
 
+  if (previewVideo && previewVideo.srcObject) {
+  previewVideo.srcObject.getTracks().forEach(t => t.stop());
+  previewVideo.srcObject = null;
+}
+
+
   homeScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
 
   status.innerText = "Bağlanıyor...";
 
-  socket.emit("skip");
+socket.emit("start");
 };
 
 
@@ -265,6 +271,8 @@ btnStop.onclick = () => {
   homeScreen.classList.remove("hidden");
   appScreen.classList.add("hidden");
 
+  // tekrar preview başlat
+  startPreview();
 };
 
 
@@ -561,3 +569,13 @@ if (swipeLayer) {
 
 // Sayfa açılınca kamera önizleme başlasın
 //startPreview();
+
+
+// Sayfa açılınca sadece home ekranda preview başlasın
+window.addEventListener("load", () => {
+
+  if (homeScreen && !homeScreen.classList.contains("hidden")) {
+    startPreview();
+  }
+
+});

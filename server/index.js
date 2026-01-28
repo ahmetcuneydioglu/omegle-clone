@@ -422,6 +422,10 @@ io.on("connection",(socket)=>{
     }, 300);
   }
 
+  socket.on("start", () => {
+  enqueue(socket);
+  });
+
 });
 
 
