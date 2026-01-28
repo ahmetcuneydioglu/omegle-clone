@@ -10,132 +10,201 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center">
+<body class="bg-black text-white min-h-screen overflow-hidden">
 
-  <div class="w-full h-full sm:max-w-md bg-gray-800 sm:rounded-xl shadow-lg p-3 flex flex-col">
+<!-- Arka Kamera Preview -->
+<video
+  id="bgPreview"
+  autoplay
+  muted
+  playsinline
+  class="fixed inset-0 w-full h-full object-cover blur-md brightness-50 scale-105 -z-10 hidden"
+></video>
 
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-3">
-      <h1 class="text-xl font-bold">Text Chat</h1>
-      <p id="online" class="text-green-400 text-sm">Online: 0</p>
+
+<!-- ANA KAPSAYICI -->
+<div class="relative min-h-screen flex flex-col">
+
+  <!-- HEADER -->
+  <div class="px-4 pt-4 flex justify-between items-center">
+
+    <h1 class="text-xl font-bold">🎥 Yeni Nesil Chat</h1>
+
+    <p id="online" class="text-green-400 text-sm">
+      ● 0 Online
+    </p>
+
+  </div>
+
+
+  <!-- MERKEZ -->
+  <div class="flex-1 flex flex-col justify-center items-center px-4 text-center">
+
+    <!-- LOGO -->
+    <h2 class="text-5xl font-extrabold mb-6 tracking-wide">
+      OmeChat
+    </h2>
+
+
+    <!-- BUTONLAR -->
+    <div class="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
+
+      <button
+        id="btnMe"
+        class="bg-white/10 backdrop-blur border border-white/20 py-3 rounded-xl font-semibold text-lg"
+      >
+        👤 BEN
+      </button>
+
+      <button
+        id="btnCountry"
+        class="bg-white/10 backdrop-blur border border-white/20 py-3 rounded-xl font-semibold text-lg"
+      >
+        🌍 ÜLKE
+      </button>
+
     </div>
 
-    <!-- Video -->
-    <div
-      id="videoArea"
-      class="hidden flex justify-center gap-2 mb-2"
-    >
 
-      <video
-        id="localVideo"
-        autoplay
-        muted
-        playsinline
-        class="w-1/2 bg-black rounded"
-      ></video>
-
-      <video
-        id="remoteVideo"
-        autoplay
-        playsinline
-        class="w-1/2 bg-black rounded"
-      ></video>
-
-    </div>
-
-    <!-- Status -->
+    <!-- STATUS -->
     <p
       id="status"
-      class="text-center text-gray-400 mb-3"
+      class="text-gray-300 text-sm mb-4"
     >
       Bağlanıyor...
     </p>
 
-    <!-- Chat -->
+  </div>
+
+
+  <!-- VIDEO ALANI -->
+  <div
+    id="videoArea"
+    class="hidden fixed inset-0 bg-black z-30 flex"
+  >
+
+    <video
+      id="remoteVideo"
+      autoplay
+      playsinline
+      class="w-full h-full object-cover"
+    ></video>
+
+    <video
+      id="localVideo"
+      autoplay
+      muted
+      playsinline
+      class="w-28 h-40 object-cover rounded-xl absolute top-4 right-4 border border-white/30"
+    ></video>
+
+  </div>
+
+
+  <!-- CHAT -->
+  <div
+    id="chat"
+    class="hidden fixed inset-0 bg-black/90 z-40 flex flex-col p-3"
+  >
+
+    <!-- Mesajlar -->
     <div
-      id="chat"
-      class="hidden flex flex-col flex-1 min-h-0"
-    >
+      id="messages"
+      class="flex-1 overflow-y-auto text-sm space-y-1 mb-2"
+    ></div>
 
-      <!-- Messages -->
-      <div
-        id="messages"
-        class="flex-1 overflow-y-auto bg-gray-900 rounded p-2 mb-2 space-y-1 text-sm"
-      ></div>
 
-      <!-- Controls -->
+    <!-- Kontroller -->
     <div
-    id="controls"
-    class="flex justify-center gap-3 mb-2"
+      id="controls"
+      class="flex justify-around mb-2"
     >
 
-    <button
-        id="toggleMic"
-        class="bg-gray-700 px-3 py-2 rounded text-sm"
-    >
-        🎤 Ses Kapat
-    </button>
+      <button id="toggleMic" class="text-xl">🎤</button>
+      <button id="toggleCam" class="text-xl">📷</button>
+      <button id="pauseBtn" class="text-xl">⏸️</button>
+      <button id="reportBtn" class="text-xl text-red-500">🚨</button>
 
-    <button
-        id="toggleCam"
-        class="bg-gray-700 px-3 py-2 rounded text-sm"
-    >
-        📷 Kamera Kapat
-    </button>
-
-    <button
-        id="pauseBtn"
-        class="bg-yellow-600 px-3 py-2 rounded text-sm"
-    >
-        ⏸️ Durdur
-    </button>
-
-    <button
-        id="reportBtn"
-        class="bg-red-600 px-3 py-2 rounded text-sm"
-    >
-        🚨 Rapor
-    </button>
-
-</div>
+    </div>
 
 
-      <!-- Input -->
-      <div class="flex gap-2">
+    <!-- Input -->
+    <div class="flex gap-2">
 
-        <input
-          id="input"
-          type="text"
-          placeholder="Mesaj yaz..."
-          class="flex-1 bg-gray-700 rounded px-3 py-2 focus:outline-none"
-        />
+      <input
+        id="input"
+        type="text"
+        placeholder="Mesaj yaz..."
+        class="flex-1 bg-gray-800 rounded-xl px-3 py-2 outline-none"
+      />
 
-        <button
-          id="send"
-          class="bg-blue-600 px-4 py-2 rounded"
-        >
-          Gönder
-        </button>
+      <button
+        id="send"
+        class="bg-blue-600 px-4 rounded-xl"
+      >
+        ➤
+      </button>
 
-        <button
-          id="skip"
-          class="bg-blue-600 px-4 py-2 rounded"
-        >
-          Yeni
-        </button>
-
-      </div>
+      <button
+        id="skip"
+        class="bg-blue-600 px-4 rounded-xl"
+      >
+        Yeni
+      </button>
 
     </div>
 
   </div>
 
 
-  <!-- Socket -->
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- ALT BAR -->
+  <div
+    class="fixed bottom-0 left-0 right-0 bg-black/60 backdrop-blur border-t border-white/10 flex justify-around py-2 z-20"
+  >
 
-  <!-- App -->
-  <script src="/script.js"></script>
+    <button class="text-xl">👤</button>
+    <button class="text-xl">🔍</button>
+    <button class="text-xl text-green-400">📺</button>
+    <button class="text-xl">✉️</button>
+    <button class="text-xl">⭐</button>
+
+  </div>
+
+</div>
+
+
+<!-- Socket -->
+<script src="/socket.io/socket.io.js"></script>
+
+<!-- App -->
+<script src="/script.js"></script>
+
+
+<script>
+/* Arka plan kamera preview */
+async function startPreview(){
+
+  try{
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:true,
+      audio:false
+    });
+
+    const bg = document.getElementById("bgPreview");
+
+    bg.srcObject = stream;
+    bg.classList.remove("hidden");
+
+  }catch(e){
+    console.log("Preview yok:",e);
+  }
+
+}
+
+startPreview();
+</script>
+
 
 </body>
 </html>
