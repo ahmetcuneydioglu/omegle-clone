@@ -6,65 +6,59 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-gray-900 text-white min-h-screen">
 
+
+<!-- ================= HOME ================= -->
+
 <div id="homeScreen"
  class="min-h-screen grid grid-cols-1 md:grid-cols-2">
 
-  <!-- SOL PANEL -->
-  <div
-    class="flex flex-col items-center justify-center gap-6 p-6 bg-gray-950">
+  <!-- SOL -->
+  <div class="flex flex-col items-center justify-center gap-6 p-6 bg-gray-950">
 
-    <!-- Logo -->
     <div class="text-4xl font-bold flex items-center gap-2">
       📺 <span class="text-green-400">Ome</span>Chat
     </div>
 
-    <p id="online"
-      class="text-green-400 text-sm">
+    <p id="online" class="text-green-400 text-sm">
       Online: 0
     </p>
 
-    <!-- Buttons -->
     <div class="grid grid-cols-2 gap-4 w-full max-w-sm">
 
       <button id="btnStart"
-        class="bg-green-600 hover:bg-green-700 py-4 rounded-xl text-lg font-semibold">
+        class="bg-green-600 py-4 rounded-xl text-lg font-semibold">
         ▶ Başlat
       </button>
 
       <button id="btnStop"
-        class="bg-red-600 hover:bg-red-700 py-4 rounded-xl text-lg font-semibold">
+        class="bg-red-600 py-4 rounded-xl text-lg font-semibold">
         ⏹ Dur
       </button>
 
-      <button
-        class="bg-gray-700 py-3 rounded-xl">
+      <button class="bg-gray-700 py-3 rounded-xl">
         🇹🇷 Ülke
       </button>
 
-      <button
-        class="bg-gray-700 py-3 rounded-xl">
+      <button class="bg-gray-700 py-3 rounded-xl">
         👤 Ben
       </button>
 
     </div>
 
-    <p class="text-xs text-gray-400 mt-4 text-center max-w-xs">
+    <p class="text-xs text-gray-400 mt-4 text-center">
       Başlatarak kuralları kabul etmiş olursun.
     </p>
 
   </div>
 
 
-  <!-- SAĞ PANEL (KAMERA PREVIEW) -->
-  <div
-    class="flex items-center justify-center bg-black relative">
-    <video autoplay playsinline muted></video>
+  <!-- SAĞ (PREVIEW) -->
+  <div class="flex items-center justify-center bg-black relative">
 
     <video
       id="previewVideo"
@@ -74,8 +68,7 @@
       class="w-full h-full object-cover"
     ></video>
 
-    <div
-      class="absolute bottom-3 text-xs opacity-70">
+    <div class="absolute bottom-3 text-xs opacity-70">
       Kamera önizleme
     </div>
 
@@ -84,18 +77,97 @@
 </div>
 
 
-<!-- CHAT / VIDEO SCREEN -->
-<div id="appScreen" class="hidden">
 
-  <!-- Senin mevcut video/chat UI burada kalacak -->
-  <!-- videoArea + chat -->
+<!-- ================= APP ================= -->
+
+<div id="appScreen" class="hidden h-screen flex flex-col">
+
+
+  <!-- STATUS -->
+  <div class="p-2 text-center text-gray-400" id="status">
+    Bağlanıyor...
+  </div>
+
+
+  <!-- VIDEO -->
+  <div
+    id="videoArea"
+    class="flex-1 flex bg-black relative">
+
+    <video
+      id="remoteVideo"
+      autoplay
+      playsinline
+      class="w-full h-full object-cover"
+    ></video>
+
+    <video
+      id="localVideo"
+      autoplay
+      muted
+      playsinline
+      class="w-32 h-40 absolute top-3 right-3 rounded-lg border"
+    ></video>
+
+  </div>
+
+
+  <!-- CHAT -->
+  <div id="chat" class="p-2 flex flex-col bg-gray-800">
+
+    <div
+      id="messages"
+      class="flex-1 overflow-y-auto text-sm mb-2"
+    ></div>
+
+    <div id="controls" class="flex gap-2 mb-2">
+
+      <button id="toggleMic" class="bg-gray-700 px-3 py-1 rounded">
+        🎤
+      </button>
+
+      <button id="toggleCam" class="bg-gray-700 px-3 py-1 rounded">
+        📷
+      </button>
+
+      <button id="pauseBtn" class="bg-yellow-600 px-3 py-1 rounded">
+        ⏸
+      </button>
+
+      <button id="reportBtn" class="bg-red-600 px-3 py-1 rounded">
+        🚨
+      </button>
+
+      <button id="skip" class="bg-blue-600 px-3 py-1 rounded ml-auto">
+        Yeni
+      </button>
+
+    </div>
+
+    <div class="flex gap-2">
+
+      <input
+        id="input"
+        placeholder="Mesaj yaz..."
+        class="flex-1 bg-gray-700 px-3 py-2 rounded"
+      />
+
+      <button
+        id="send"
+        class="bg-blue-600 px-4 rounded">
+        Gönder
+      </button>
+
+    </div>
+
+  </div>
 
 </div>
+
 
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/script.js"></script>
 
 </body>
-
 </html>

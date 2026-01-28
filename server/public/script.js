@@ -1,7 +1,7 @@
 const socket = io();
 
 
-
+let reported = false;
 let isInitiator = false;
 let localStream = null;
 let peerConnection = null;
@@ -383,7 +383,7 @@ pauseBtn.onclick = () => {
 };
 
 
-let reported = false;
+
 
     reportBtn.addEventListener("click", () => {
 
