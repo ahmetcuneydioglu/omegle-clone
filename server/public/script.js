@@ -6,6 +6,8 @@ let isInitiator = false;
 let localStream = null;
 let peerConnection = null;
 let pendingCandidates = [];
+let currentFacing = "user"; // front
+
 
 /* UI */
 const status = document.getElementById("status");
@@ -59,9 +61,18 @@ async function ensureCamera() {
   if (localStream) return;
 
   localStream = await navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: true,
+
+  video: {
+    width: { ideal: 640 },
+    height: { ideal: 480 },
+    frameRate: { max: 24 },
+    facingMode: currentFacing
+  },
+
+  audio: true
+
   });
+
 
   localVideo.srcObject = localStream;
 }
@@ -373,3 +384,47 @@ function handleSwipe() {
     }
   }
 }
+
+//Dark/Light mode toggle
+let dark = true;
+
+const themeBtn = document.getElementById("themeBtn");
+
+if (themeBtn) {
+
+  themeBtn.onclick = () => {
+
+    dark = !dark;
+
+    document.body.classList.toggle("bg-black");
+    document.body.classList.toggle("bg-white");
+
+    document.body.classList.toggle("text-white");
+    document.body.classList.toggle("text-black");
+
+    themeBtn.innerText = dark ? "🌙" : "☀️";
+  };
+
+}
+
+//flip camera
+const flipCam = document.getElementById("flipCam");
+
+if (flipCam) {
+
+  flipCam.onclick = async () => {
+
+    currentFacing =
+      currentFacing === "user" ? "environment" : "user";
+
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+      localStream = null;
+    }
+
+    await ensureCamera();
+
+    haptic();
+  };
+}
+
