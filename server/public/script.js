@@ -371,65 +371,64 @@ let currentX = 0;
 let dragging = false;
 
 
-document.addEventListener("touchstart", e => {
+// Bu elemanlarda swipe çalışmasın
+function isBlockedTarget(el) {
+  return !!el.closest("#chat, #controls, #input, #send, #skip, #messages");
+}
 
-  if (!videoArea || videoArea.classList.contains("hidden")) return;
+if (videoArea) {
+  videoArea.addEventListener("touchstart", (e) => {
+    // Video açık değilse hiç çalışma
+    if (videoArea.classList.contains("hidden")) return;
 
-  startX = e.touches[0].clientX;
-  dragging = true;
+    // Input/controls vb. üstünden dokunulduysa engelle
+    if (isBlockedTarget(e.target)) return;
 
-  videoArea.style.transition = "none";
-});
+    startX = e.touches[0].clientX;
+    currentX = startX;
+    dragging = true;
 
+    videoArea.style.transition = "none";
+  }, { passive: true });
 
-document.addEventListener("touchmove", e => {
+  videoArea.addEventListener("touchmove", (e) => {
+    if (!dragging) return;
 
-  if (!dragging) return;
+    currentX = e.touches[0].clientX;
+    const diff = currentX - startX;
 
-  currentX = e.touches[0].clientX;
-  const diff = currentX - startX;
+    videoArea.style.transform = `translateX(${diff}px) rotate(${diff / 20}deg)`;
+  }, { passive: true });
 
-  videoArea.style.transform =
-    `translateX(${diff}px) rotate(${diff/20}deg)`;
-});
+  videoArea.addEventListener("touchend", () => {
+    if (!dragging) return;
 
+    dragging = false;
 
-document.addEventListener("touchend", () => {
+    const diff = currentX - startX;
 
-  if (!dragging) return;
+    videoArea.style.transition = "0.25s ease";
 
-  dragging = false;
+    if (Math.abs(diff) > 110) {
+      const dir = diff > 0 ? 1 : -1;
 
-  const diff = currentX - startX;
+      videoArea.style.transform =
+        `translateX(${dir * window.innerWidth}px) rotate(${dir * 15}deg)`;
 
-  videoArea.style.transition = "0.25s ease";
+      if (typeof haptic === "function") haptic(50);
 
-  // Kaydırma yeterliyse
-  if (Math.abs(diff) > 100) {
+      setTimeout(() => {
+        videoArea.style.transition = "none";
+        videoArea.style.transform = "translateX(0)";
+        socket.emit("skip");
+      }, 260);
 
-    const dir = diff > 0 ? 1 : -1;
-
-    // Kart uçsun
-    videoArea.style.transform =
-      `translateX(${dir * window.innerWidth}px) rotate(${dir*15}deg)`;
-
-    haptic(50);
-
-    setTimeout(() => {
-
-      videoArea.style.transition = "none";
+    } else {
       videoArea.style.transform = "translateX(0)";
+    }
+  }, { passive: true });
+}
 
-      socket.emit("skip");
-
-    }, 250);
-
-  } else {
-
-    // Geri dön
-    videoArea.style.transform = "translateX(0)";
-  }
-});
 
 //Dark/Light mode toggle
 let dark = true;
