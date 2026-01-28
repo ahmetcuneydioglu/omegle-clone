@@ -154,3 +154,5 @@ body {
 #messages {
   pointer-events: auto;
 }
+
+#videoArea { touch-action: pan-y; }

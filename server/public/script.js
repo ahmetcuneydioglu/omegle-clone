@@ -147,6 +147,8 @@ socket.on("waiting", () => {
 
 /* MATCH */
 socket.on("matched", async (data) => {
+  enableSwipe(); // swipe aktif
+
   reported = false;
 
   isInitiator = data === true;
@@ -264,7 +266,6 @@ skip.onclick = () => {
   chat.classList.add("hidden");
 
   status.innerText = "Yeni eşleşme aranıyor...";
-  socket.emit("skip");
 };
 
 socket.on("partnerDisconnected", () => {
@@ -364,83 +365,6 @@ socket.on("force-kick", ()=>{
 });
 
 
-//Swipe to skip
-let startX = 0;
-let currentX = 0;
-let dragging = false;
-
-
-if (videoArea) {
-
-  videoArea.addEventListener("touchstart", (e) => {
-
-    // Video görünmüyorsa çalışma
-    if (videoArea.classList.contains("hidden")) return;
-
-    console.log("SWIPE START");
-    
-    startX = e.touches[0].clientX;
-    currentX = startX;
-    dragging = true;
-
-    videoArea.style.transition = "none";
-
-  }, { passive: true });
-
-
-  videoArea.addEventListener("touchmove", (e) => {
-
-    if (!dragging) return;
-
-    currentX = e.touches[0].clientX;
-
-    const diff = currentX - startX;
-
-    videoArea.style.transform =
-      `translateX(${diff}px) rotate(${diff / 25}deg)`;
-
-  }, { passive: true });
-
-
-  videoArea.addEventListener("touchend", () => {
-
-    if (!dragging) return;
-
-    dragging = false;
-
-    const diff = currentX - startX;
-
-    videoArea.style.transition = "0.25s ease-out";
-
-    // En az 90px sürüklendiyse skip
-    if (Math.abs(diff) > 90) {
-
-      const dir = diff > 0 ? 1 : -1;
-
-      videoArea.style.transform =
-        `translateX(${dir * window.innerWidth}px) rotate(${dir * 12}deg)`;
-
-      if (navigator.vibrate) navigator.vibrate(40);
-
-      setTimeout(() => {
-
-        videoArea.style.transition = "none";
-        videoArea.style.transform = "translateX(0)";
-
-        socket.emit("skip");
-
-      }, 250);
-
-    } else {
-
-      // Geri dön
-      videoArea.style.transform = "translateX(0)";
-
-    }
-  }, { passive: true });
-
-}
-
 
 
 //Dark/Light mode toggle
@@ -504,3 +428,83 @@ if (!localStorage.getItem("swipeHintShown")) {
 }
 
 
+
+// =======================
+// ENABLE SWIPE AFTER MATCH
+// =======================
+
+function enableSwipe(){
+
+  let startX = 0;
+  let currentX = 0;
+  let dragging = false;
+
+  const target = remoteVideo;
+
+  if(!target) return;
+
+  target.addEventListener("touchstart", e => {
+
+    if (videoArea.classList.contains("hidden")) return;
+
+    startX = e.touches[0].clientX;
+    currentX = startX;
+    dragging = true;
+
+    videoArea.style.transition = "none";
+
+  }, { passive: true });
+
+
+  target.addEventListener("touchmove", e => {
+
+    if (!dragging) return;
+
+    e.preventDefault();
+
+    currentX = e.touches[0].clientX;
+
+    const diff = currentX - startX;
+
+    videoArea.style.transform =
+      `translateX(${diff}px) rotate(${diff/25}deg)`;
+
+  }, { passive: false });
+
+
+  target.addEventListener("touchend", () => {
+
+    if (!dragging) return;
+
+    dragging = false;
+
+    const diff = currentX - startX;
+
+    videoArea.style.transition = "0.25s ease";
+
+    if (Math.abs(diff) > 90) {
+
+      const dir = diff > 0 ? 1 : -1;
+
+      videoArea.style.transform =
+        `translateX(${dir*window.innerWidth}px) rotate(${dir*12}deg)`;
+
+      haptic(40);
+
+      setTimeout(()=>{
+
+        videoArea.style.transition = "none";
+        videoArea.style.transform = "translateX(0)";
+
+        socket.emit("skip");
+
+      },250);
+
+    } else {
+
+      videoArea.style.transform = "translateX(0)";
+    }
+
+  }, { passive: true });
+
+}
