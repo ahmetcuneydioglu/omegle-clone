@@ -7,6 +7,8 @@ let localStream = null;
 let peerConnection = null;
 let pendingCandidates = [];
 let currentFacing = "user"; // front
+let firstSwipe = false;
+
 
 
 /* UI */
@@ -250,6 +252,11 @@ input.addEventListener("keydown", (e) => {
 /* SKIP */
 skip.onclick = () => {
 
+  if(!firstSwipe){
+  firstSwipe = true;
+  socket.emit("system","✅ Kaydırma aktif!");
+}
+
   haptic();
   stopVideo();
   socket.emit("skip");
@@ -359,31 +366,70 @@ socket.on("force-kick", ()=>{
 
 
 //Swipe to skip
-let touchStartX = 0;
-let touchEndX = 0;
+let startX = 0;
+let currentX = 0;
+let dragging = false;
+
 
 document.addEventListener("touchstart", e => {
-  touchStartX = e.changedTouches[0].screenX;
+
+  if (!videoArea || videoArea.classList.contains("hidden")) return;
+
+  startX = e.touches[0].clientX;
+  dragging = true;
+
+  videoArea.style.transition = "none";
 });
 
-document.addEventListener("touchend", e => {
-  touchEndX = e.changedTouches[0].screenX;
-  handleSwipe();
+
+document.addEventListener("touchmove", e => {
+
+  if (!dragging) return;
+
+  currentX = e.touches[0].clientX;
+  const diff = currentX - startX;
+
+  videoArea.style.transform =
+    `translateX(${diff}px) rotate(${diff/20}deg)`;
 });
 
-function handleSwipe() {
 
-  const diff = touchEndX - touchStartX;
+document.addEventListener("touchend", () => {
 
-  // En az 80px kaydırma
-  if (Math.abs(diff) > 80) {
-    socket.emit("skip");
+  if (!dragging) return;
 
-    if (navigator.vibrate) {
-      navigator.vibrate(40);
-    }
+  dragging = false;
+
+  const diff = currentX - startX;
+
+  videoArea.style.transition = "0.25s ease";
+
+  // Kaydırma yeterliyse
+  if (Math.abs(diff) > 100) {
+
+    const dir = diff > 0 ? 1 : -1;
+
+    // Kart uçsun
+    videoArea.style.transform =
+      `translateX(${dir * window.innerWidth}px) rotate(${dir*15}deg)`;
+
+    haptic(50);
+
+    setTimeout(() => {
+
+      videoArea.style.transition = "none";
+      videoArea.style.transform = "translateX(0)";
+
+      socket.emit("skip");
+
+    }, 250);
+
+  } else {
+
+    // Geri dön
+    videoArea.style.transform = "translateX(0)";
   }
-}
+});
 
 //Dark/Light mode toggle
 let dark = true;
@@ -427,4 +473,22 @@ if (flipCam) {
     haptic();
   };
 }
+
+// Swipe öğretici (1 kere)
+if (!localStorage.getItem("swipeHintShown")) {
+
+  const hint = document.getElementById("swipeHint");
+
+  if (hint) {
+
+    hint.classList.remove("hidden");
+
+    setTimeout(() => {
+      hint.classList.add("hidden");
+      localStorage.setItem("swipeHintShown", "1");
+    }, 3000);
+
+  }
+}
+
 
