@@ -217,6 +217,10 @@ send.onclick = () => {
   input.value = "";
 };
 
+remoteVideo.addEventListener("dblclick", ()=>{
+  socket.emit("skip");
+});
+
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
