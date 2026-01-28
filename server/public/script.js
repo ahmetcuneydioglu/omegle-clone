@@ -64,7 +64,7 @@ const rtcConfig = {
 
 let previewStream = null;
 
-async function startPreview(){
+/* async function startPreview(){
 
   previewStream =
     await navigator.mediaDevices.getUserMedia({
@@ -73,30 +73,34 @@ async function startPreview(){
     });
 
   previewVideo.srcObject = previewStream;
-}
+} */
 
 
 /* Kamera */
 async function ensureCamera() {
-  if (localStream && localStream.active) return;
 
+  if (localStream) return;
 
-  localStream = await navigator.mediaDevices.getUserMedia({
+  try {
 
-  video: {
-    width: { ideal: 640 },
-    height: { ideal: 480 },
-    frameRate: { max: 24 },
-    facingMode: currentFacing
-  },
+    localStream =
+      await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: currentFacing
+        },
+        audio: true
+      });
 
-  audio: true
+    localVideo.srcObject = localStream;
 
-  });
+  } catch (err) {
 
+    console.error("CAM ERROR:", err);
 
-  localVideo.srcObject = localStream;
+    alert("Kamera açılamadı!");
+  }
 }
+
 
 /* Peer */
 function ensurePeer() {
@@ -130,13 +134,14 @@ async function ensureMediaAndPeer() {
 
 /* Kapat */
 function stopVideo() {
+
   if (peerConnection) {
     peerConnection.close();
     peerConnection = null;
   }
 
   if (localStream) {
-    localStream.getTracks().forEach((t) => t.stop());
+    localStream.getTracks().forEach(t => t.stop());
     localStream = null;
   }
 
@@ -144,8 +149,10 @@ function stopVideo() {
 
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
+
   videoArea.classList.add("hidden");
 }
+
 
 function haptic(ms = 40){
   if (navigator.vibrate) {
@@ -166,34 +173,33 @@ socket.on("waiting", () => {
 
 /* MATCH */
 socket.on("matched", async (data) => {
-  
 
   reported = false;
 
   isInitiator = data === true;
-  console.log("INITIATOR =", isInitiator);
 
-  if (peerConnection) {
-  peerConnection.close();
-  peerConnection = null;
-}
+  console.log("MATCHED | INIT:", isInitiator);
 
+  stopVideo(); // temiz reset
 
   status.innerText = "Eşleşti 🎉";
+
   chat.classList.remove("hidden");
   videoArea.classList.remove("hidden");
 
-  await ensureMediaAndPeer();
+  await ensureCamera();
+  ensurePeer();
 
   if (isInitiator) {
-    console.log("OFFER oluşturuluyor");
 
     const offer = await peerConnection.createOffer();
+
     await peerConnection.setLocalDescription(offer);
 
     socket.emit("offer", offer);
   }
 });
+
 
 /* OFFER */
 socket.on("offer", async (offer) => {
@@ -242,18 +248,16 @@ socket.on("ice-candidate", async (candidate) => {
   await peerConnection.addIceCandidate(candidate);
 });
 
-btnStart.onclick = async () => {
-
-  if (previewStream) {
-    previewStream.getTracks().forEach(t => t.stop());
-    previewStream = null;
-  }
+btnStart.onclick = () => {
 
   homeScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
 
+  status.innerText = "Bağlanıyor...";
+
   socket.emit("skip");
 };
+
 
 
 btnStop.onclick = () => {
@@ -556,4 +560,4 @@ if (swipeLayer) {
 }
 
 // Sayfa açılınca kamera önizleme başlasın
-startPreview();
+//startPreview();
