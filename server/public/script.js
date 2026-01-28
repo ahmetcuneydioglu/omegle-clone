@@ -9,6 +9,12 @@ let pendingCandidates = [];
 let currentFacing = "user"; // front
 let firstSwipe = false;
 
+const homeScreen = document.getElementById("homeScreen");
+const appScreen = document.getElementById("appScreen");
+
+const btnStart = document.getElementById("btnStart");
+const btnStop = document.getElementById("btnStop");
+const previewVideo = document.getElementById("previewVideo");
 
 
 /* UI */
@@ -56,6 +62,16 @@ const rtcConfig = {
   ]
 };
 
+async function startPreview(){
+
+  const stream =
+    await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false
+    });
+
+  previewVideo.srcObject = stream;
+}
 
 
 /* Kamera */
@@ -218,6 +234,23 @@ socket.on("ice-candidate", async (candidate) => {
 
   await peerConnection.addIceCandidate(candidate);
 });
+
+btnStart.onclick = async () => {
+
+  homeScreen.classList.add("hidden");
+  appScreen.classList.remove("hidden");
+
+  socket.emit("skip"); // eşleşmeye gir
+};
+
+
+btnStop.onclick = () => {
+
+  homeScreen.classList.remove("hidden");
+  appScreen.classList.add("hidden");
+
+};
+
 
 /* CHAT */
 socket.on("message", (data) => {
@@ -507,3 +540,6 @@ if (swipeLayer) {
     videoArea.style.transform = "translateX(0)";
   });
 }
+
+// Sayfa açılınca kamera önizleme başlasın
+startPreview();

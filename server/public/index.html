@@ -10,208 +10,91 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-black text-white min-h-screen overflow-hidden">
+<body class="bg-gray-900 text-white min-h-screen">
 
-<!-- Arka Kamera Preview -->
-<video
-  id="bgPreview"
-  autoplay
-  muted
-  playsinline
-  class="fixed inset-0 w-full h-full object-cover blur-md brightness-50 scale-105 -z-10 hidden"
-></video>
+<div id="homeScreen"
+ class="min-h-screen grid grid-cols-1 md:grid-cols-2">
 
+  <!-- SOL PANEL -->
+  <div
+    class="flex flex-col items-center justify-center gap-6 p-6 bg-gray-950">
 
-<!-- ANA KAPSAYICI -->
-<div class="relative min-h-screen flex flex-col">
+    <!-- Logo -->
+    <div class="text-4xl font-bold flex items-center gap-2">
+      📺 <span class="text-green-400">Ome</span>Chat
+    </div>
 
-  <!-- HEADER -->
-  <div class="px-4 pt-4 flex justify-between items-center">
-    <button id="themeBtn" class="text-xl">🌙</button>
-
-
-    <h1 class="text-xl font-bold">🎥 Yeni Nesil Chat</h1>
-
-    <p id="online" class="text-green-400 text-sm">
-      ● 0 Online
+    <p id="online"
+      class="text-green-400 text-sm">
+      Online: 0
     </p>
 
-  </div>
+    <!-- Buttons -->
+    <div class="grid grid-cols-2 gap-4 w-full max-w-sm">
 
+      <button id="btnStart"
+        class="bg-green-600 hover:bg-green-700 py-4 rounded-xl text-lg font-semibold">
+        ▶ Başlat
+      </button>
 
-  <!-- MERKEZ -->
-  <div class="flex-1 flex flex-col justify-center items-center px-4 text-center">
-
-    <!-- LOGO -->
-    <h2 class="text-5xl font-extrabold mb-6 tracking-wide">
-      OmeChat
-    </h2>
-
-
-    <!-- BUTONLAR -->
-    <div class="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
-
-      <button
-        id="btnMe"
-        class="bg-white/10 backdrop-blur border border-white/20 py-3 rounded-xl font-semibold text-lg"
-      >
-        👤 BEN
+      <button id="btnStop"
+        class="bg-red-600 hover:bg-red-700 py-4 rounded-xl text-lg font-semibold">
+        ⏹ Dur
       </button>
 
       <button
-        id="btnCountry"
-        class="bg-white/10 backdrop-blur border border-white/20 py-3 rounded-xl font-semibold text-lg"
-      >
-        🌍 ÜLKE
+        class="bg-gray-700 py-3 rounded-xl">
+        🇹🇷 Ülke
+      </button>
+
+      <button
+        class="bg-gray-700 py-3 rounded-xl">
+        👤 Ben
       </button>
 
     </div>
 
-
-    <!-- STATUS -->
-    <p
-      id="status"
-      class="text-gray-300 text-sm mb-4"
-    >
-      Bağlanıyor...
+    <p class="text-xs text-gray-400 mt-4 text-center max-w-xs">
+      Başlatarak kuralları kabul etmiş olursun.
     </p>
 
   </div>
 
 
-  <!-- VIDEO ALANI -->
+  <!-- SAĞ PANEL (KAMERA PREVIEW) -->
   <div
-    id="videoArea"
-    class="hidden fixed inset-0 bg-black z-30 flex"
-  >
+    class="flex items-center justify-center bg-black relative">
 
     <video
-      id="remoteVideo"
+      id="previewVideo"
       autoplay
+      muted
       playsinline
       class="w-full h-full object-cover"
     ></video>
 
-    <video
-      id="localVideo"
-      autoplay
-      muted
-      playsinline
-      class="w-28 h-40 object-cover rounded-xl absolute top-4 right-4 border border-white/30"
-    ></video>
-
-        <!-- Swipe Layer -->
-        <div id="swipeLayer"></div>
-
-  </div>
-
-
-  <!-- CHAT (video üstüne alt panel) -->
-<div
-  id="chat"
-  class="hidden fixed inset-0 z-40 flex flex-col justify-end p-3"
->
-  <!-- Mesajlar -->
-  <div
-    id="messages"
-    class="max-h-[35vh] overflow-y-auto text-sm space-y-1 mb-2 bg-black/40 backdrop-blur rounded-xl p-2"
-  ></div>
-
-  <!-- Kontroller -->
-  <div id="controls" class="flex justify-around mb-2 bg-black/40 backdrop-blur rounded-xl py-2">
-    <button id="toggleMic" class="text-xl">🎤</button>
-    <button id="toggleCam" class="text-xl">📷</button>
-    <button id="pauseBtn" class="text-xl">⏸️</button>
-    <button id="reportBtn" class="text-xl text-red-500">🚨</button>
-    <button id="flipCam" class="text-xl">🔄</button>
-
-  </div>
-
-  <!-- Input -->
-  <div class="flex gap-2">
-    <input
-      id="input"
-      type="text"
-      placeholder="Mesaj yaz..."
-      class="flex-1 bg-gray-800 rounded-xl px-3 py-2 outline-none"
-    />
-    <button id="send" class="bg-blue-600 px-4 rounded-xl">➤</button>
-    <button id="skip" class="bg-blue-600 px-4 rounded-xl">Yeni</button>
-  </div>
-</div>
-
-
-
-  <!-- ALT BAR -->
-  <div
-    class="fixed bottom-0 left-0 right-0 bg-black/60 backdrop-blur border-t border-white/10 flex justify-around py-2 z-20"
-  >
-
-    <button class="text-xl">👤</button>
-    <button class="text-xl">🔍</button>
-    <button class="text-xl text-green-400">📺</button>
-    <button class="text-xl">✉️</button>
-    <button class="text-xl">⭐</button>
+    <div
+      class="absolute bottom-3 text-xs opacity-70">
+      Kamera önizleme
+    </div>
 
   </div>
 
 </div>
 
 
-<!-- SWIPE HINT -->
-<div
-  id="swipeHint"
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 hidden"
->
+<!-- CHAT / VIDEO SCREEN -->
+<div id="appScreen" class="hidden">
 
-  <div class="text-center animate-pulse">
-
-    <div class="text-5xl mb-3">⬅️ ➡️</div>
-
-    <p class="text-lg font-semibold">
-      Yeni eşleşme için kaydır
-    </p>
-
-    <p class="text-sm opacity-70 mt-1">
-      Parmağını sağa veya sola sürükle
-    </p>
-
-  </div>
+  <!-- Senin mevcut video/chat UI burada kalacak -->
+  <!-- videoArea + chat -->
 
 </div>
 
-<!-- Socket -->
+
 <script src="/socket.io/socket.io.js"></script>
-
-<!-- App -->
 <script src="/script.js"></script>
 
-
-<script>
-/* Arka plan kamera preview */
-async function startPreview(){
-
-  try{
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video:true,
-      audio:false
-    });
-
-    const bg = document.getElementById("bgPreview");
-
-    bg.srcObject = stream;
-    bg.classList.remove("hidden");
-
-  }catch(e){
-    console.log("Preview yok:",e);
-  }
-
-}
-
-startPreview();
-</script>
-
-
 </body>
+
 </html>
