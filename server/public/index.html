@@ -80,82 +80,82 @@
 
 <!-- ================= APP ================= -->
 
-<div id="appScreen" class="hidden h-screen flex flex-col md:flex-row">
+<div id="appScreen" class="hidden w-screen h-screen flex flex-col bg-black">
 
+  <!-- VIDEO ROW -->
+  <div class="flex flex-1">
 
-  <!-- STATUS -->
-  <div class="p-2 text-center text-gray-400" id="status">
-    Bağlanıyor...
+    <!-- REMOTE -->
+    <div class="w-1/2 bg-black relative">
+      <video id="remoteVideo"
+        autoplay playsinline
+        class="w-full h-full object-cover">
+      </video>
+    </div>
+
+    <!-- LOCAL -->
+    <div class="w-1/2 bg-black relative">
+      <video id="localVideo"
+        autoplay muted playsinline
+        class="w-full h-full object-cover">
+      </video>
+    </div>
+
   </div>
 
 
-  <!-- VIDEO -->
+  <!-- CONTROLS -->
   <div
-    id="videoArea"
-    class="flex-1 flex bg-black relative">
+    class="flex justify-center gap-3 p-2 bg-gray-900">
 
-    <video
-      id="remoteVideo"
-      autoplay
-      playsinline
-      class="w-full h-full object-cover"
-    ></video>
+    <button id="skip"
+      class="px-4 py-2 bg-yellow-600 rounded">
+      ⏭ Geç
+    </button>
 
-    <video
-      id="localVideo"
-      autoplay
-      muted
-      playsinline
-      class="w-32 h-40 absolute top-3 right-3 rounded-lg border"
-    ></video>
+    <button id="toggleMic"
+      class="px-4 py-2 bg-gray-700 rounded">
+      🎤
+    </button>
+
+    <button id="toggleCam"
+      class="px-4 py-2 bg-gray-700 rounded">
+      📷
+    </button>
+
+    <button id="pauseBtn"
+      class="px-4 py-2 bg-gray-700 rounded">
+      ⏸
+    </button>
+
+    <button id="reportBtn"
+      class="px-4 py-2 bg-red-600 rounded">
+      🚨
+    </button>
 
   </div>
 
 
   <!-- CHAT -->
-  <div id="chat" class="p-2 flex flex-col bg-gray-800">
+  <div
+    class="flex flex-col h-52 bg-gray-950 p-2">
 
     <div
       id="messages"
-      class="flex-1 overflow-y-auto text-sm mb-2"
-    ></div>
-
-    <div id="controls" class="flex gap-2 mb-2">
-
-      <button id="toggleMic" class="bg-gray-700 px-3 py-1 rounded">
-        🎤
-      </button>
-
-      <button id="toggleCam" class="bg-gray-700 px-3 py-1 rounded">
-        📷
-      </button>
-
-      <button id="pauseBtn" class="bg-yellow-600 px-3 py-1 rounded">
-        ⏸
-      </button>
-
-      <button id="reportBtn" class="bg-red-600 px-3 py-1 rounded">
-        🚨
-      </button>
-
-      <button id="skip" class="bg-blue-600 px-3 py-1 rounded ml-auto">
-        Yeni
-      </button>
-
+      class="flex-1 overflow-y-auto text-sm">
     </div>
 
-    <div class="flex gap-2">
+    <div class="flex gap-2 mt-2">
 
       <input
         id="input"
-        placeholder="Mesaj yaz..."
-        class="flex-1 bg-gray-700 px-3 py-2 rounded"
-      />
+        class="flex-1 bg-gray-800 px-3 py-2 rounded"
+        placeholder="Mesaj yaz..." />
 
       <button
         id="send"
-        class="bg-blue-600 px-4 rounded">
-        Gönder
+        class="px-4 bg-green-600 rounded">
+        ➤
       </button>
 
     </div>
