@@ -486,7 +486,7 @@ if (!localStorage.getItem("swipeHintShown")) {
     setTimeout(() => {
       hint.classList.add("hidden");
       localStorage.setItem("swipeHintShown", "1");
-    }, 3000);
+    }, 6000);
 
   }
 }
