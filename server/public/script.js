@@ -254,7 +254,6 @@ skip.onclick = () => {
 
   if(!firstSwipe){
   firstSwipe = true;
-  socket.emit("system","✅ Kaydırma aktif!");
 }
 
   haptic();
@@ -378,6 +377,8 @@ if (videoArea) {
     // Video görünmüyorsa çalışma
     if (videoArea.classList.contains("hidden")) return;
 
+    console.log("SWIPE START");
+    
     startX = e.touches[0].clientX;
     currentX = startX;
     dragging = true;

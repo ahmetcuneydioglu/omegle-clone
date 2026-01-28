@@ -140,3 +140,17 @@ body {
   }
 
 }
+
+
+/* Swipe için: chat üstünden dokunuş geçsin */
+#chat {
+  pointer-events: none;
+}
+
+/* Ama input ve butonlar yine çalışsın */
+#chat input,
+#chat button,
+#controls,
+#messages {
+  pointer-events: auto;
+}
