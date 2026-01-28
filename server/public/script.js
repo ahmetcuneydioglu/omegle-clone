@@ -147,7 +147,7 @@ socket.on("waiting", () => {
 
 /* MATCH */
 socket.on("matched", async (data) => {
-  enableSwipe(); // swipe aktif
+  initSwipe(); // swipe başlat
 
   reported = false;
 
@@ -428,66 +428,65 @@ if (!localStorage.getItem("swipeHintShown")) {
 }
 
 
-
 // =======================
-// ENABLE SWIPE AFTER MATCH
+// SWIPE TO SKIP (POINTER)
 // =======================
 
-function enableSwipe(){
+let pStartX = 0;
+let pCurrentX = 0;
+let pDragging = false;
 
-  let startX = 0;
-  let currentX = 0;
-  let dragging = false;
+function initSwipe(){
 
-  const target = remoteVideo;
+  if(!videoArea) return;
 
-  if(!target) return;
+  videoArea.style.touchAction = "pan-y"; // tarayıcıya izin ver
 
-  target.addEventListener("touchstart", e => {
+  videoArea.addEventListener("pointerdown", e => {
 
     if (videoArea.classList.contains("hidden")) return;
 
-    startX = e.touches[0].clientX;
-    currentX = startX;
-    dragging = true;
+    // input vs üstünde başlarsa çalışmasın
+    if (e.target.closest("#chat, #controls, #messages, input, button")) return;
 
+    pStartX = e.clientX;
+    pCurrentX = pStartX;
+    pDragging = true;
+
+    videoArea.setPointerCapture(e.pointerId);
     videoArea.style.transition = "none";
+  });
 
-  }, { passive: true });
 
+  videoArea.addEventListener("pointermove", e => {
 
-  target.addEventListener("touchmove", e => {
+    if(!pDragging) return;
 
-    if (!dragging) return;
+    pCurrentX = e.clientX;
 
-    e.preventDefault();
-
-    currentX = e.touches[0].clientX;
-
-    const diff = currentX - startX;
+    const diff = pCurrentX - pStartX;
 
     videoArea.style.transform =
-      `translateX(${diff}px) rotate(${diff/25}deg)`;
+      `translateX(${diff}px) rotate(${diff/20}deg)`;
+  });
 
-  }, { passive: false });
 
+  videoArea.addEventListener("pointerup", () => {
 
-  target.addEventListener("touchend", () => {
+    if(!pDragging) return;
 
-    if (!dragging) return;
+    pDragging = false;
 
-    dragging = false;
-
-    const diff = currentX - startX;
+    const diff = pCurrentX - pStartX;
 
     videoArea.style.transition = "0.25s ease";
 
-    if (Math.abs(diff) > 90) {
+    if(Math.abs(diff) > 80){
 
       const dir = diff > 0 ? 1 : -1;
 
       videoArea.style.transform =
-        `translateX(${dir*window.innerWidth}px) rotate(${dir*12}deg)`;
+        `translateX(${dir*window.innerWidth}px) rotate(${dir*15}deg)`;
 
       haptic(40);
 
@@ -500,11 +499,17 @@ function enableSwipe(){
 
       },250);
 
-    } else {
+    }else{
 
       videoArea.style.transform = "translateX(0)";
     }
 
-  }, { passive: true });
+  });
+
+
+  videoArea.addEventListener("pointercancel", ()=>{
+    pDragging = false;
+    videoArea.style.transform = "translateX(0)";
+  });
 
 }
