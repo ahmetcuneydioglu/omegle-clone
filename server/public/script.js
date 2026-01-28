@@ -62,21 +62,24 @@ const rtcConfig = {
   ]
 };
 
+let previewStream = null;
+
 async function startPreview(){
 
-  const stream =
+  previewStream =
     await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: false
     });
 
-  previewVideo.srcObject = stream;
+  previewVideo.srcObject = previewStream;
 }
 
 
 /* Kamera */
 async function ensureCamera() {
-  if (localStream) return;
+  if (localStream && localStream.active) return;
+
 
   localStream = await navigator.mediaDevices.getUserMedia({
 
@@ -170,7 +173,11 @@ socket.on("matched", async (data) => {
   isInitiator = data === true;
   console.log("INITIATOR =", isInitiator);
 
-  if (peerConnection) stopVideo();
+  if (peerConnection) {
+  peerConnection.close();
+  peerConnection = null;
+}
+
 
   status.innerText = "Eşleşti 🎉";
   chat.classList.remove("hidden");
@@ -237,10 +244,15 @@ socket.on("ice-candidate", async (candidate) => {
 
 btnStart.onclick = async () => {
 
+  if (previewStream) {
+    previewStream.getTracks().forEach(t => t.stop());
+    previewStream = null;
+  }
+
   homeScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
 
-  socket.emit("skip"); // eşleşmeye gir
+  socket.emit("skip");
 };
 
 
@@ -433,9 +445,11 @@ if (flipCam) {
       currentFacing === "user" ? "environment" : "user";
 
     if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
-      localStream = null;
-    }
+        localStream.getTracks().forEach(t => {
+        t.enabled = false;
+    });
+  }
+
 
     await ensureCamera();
 
