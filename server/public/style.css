@@ -156,3 +156,15 @@ body {
 }
 
 #videoArea { touch-action: pan-y; }
+
+/* Swipe yakalama katmanı */
+#swipeLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+
+  background: transparent;
+
+  touch-action: none;
+  pointer-events: auto;
+}
