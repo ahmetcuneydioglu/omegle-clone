@@ -261,7 +261,7 @@ btnStart.onclick = () => {
 
   status.innerText = "Bağlanıyor...";
 
-socket.emit("start");
+socket.emit("skip");
 };
 
 
