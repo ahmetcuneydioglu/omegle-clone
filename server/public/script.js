@@ -371,63 +371,75 @@ let currentX = 0;
 let dragging = false;
 
 
-// Bu elemanlarda swipe çalışmasın
-function isBlockedTarget(el) {
-  return !!el.closest("#chat, #controls, #input, #send, #skip, #messages");
-}
-
 if (videoArea) {
-  videoArea.addEventListener("touchstart", (e) => {
-    // Video açık değilse hiç çalışma
-    if (videoArea.classList.contains("hidden")) return;
 
-    // Input/controls vb. üstünden dokunulduysa engelle
-    if (isBlockedTarget(e.target)) return;
+  videoArea.addEventListener("touchstart", (e) => {
+
+    // Video görünmüyorsa çalışma
+    if (videoArea.classList.contains("hidden")) return;
 
     startX = e.touches[0].clientX;
     currentX = startX;
     dragging = true;
 
     videoArea.style.transition = "none";
+
   }, { passive: true });
 
+
   videoArea.addEventListener("touchmove", (e) => {
+
     if (!dragging) return;
 
     currentX = e.touches[0].clientX;
+
     const diff = currentX - startX;
 
-    videoArea.style.transform = `translateX(${diff}px) rotate(${diff / 20}deg)`;
+    videoArea.style.transform =
+      `translateX(${diff}px) rotate(${diff / 25}deg)`;
+
   }, { passive: true });
 
+
   videoArea.addEventListener("touchend", () => {
+
     if (!dragging) return;
 
     dragging = false;
 
     const diff = currentX - startX;
 
-    videoArea.style.transition = "0.25s ease";
+    videoArea.style.transition = "0.25s ease-out";
 
-    if (Math.abs(diff) > 110) {
+    // En az 90px sürüklendiyse skip
+    if (Math.abs(diff) > 90) {
+
       const dir = diff > 0 ? 1 : -1;
 
       videoArea.style.transform =
-        `translateX(${dir * window.innerWidth}px) rotate(${dir * 15}deg)`;
+        `translateX(${dir * window.innerWidth}px) rotate(${dir * 12}deg)`;
 
-      if (typeof haptic === "function") haptic(50);
+      if (navigator.vibrate) navigator.vibrate(40);
 
       setTimeout(() => {
+
         videoArea.style.transition = "none";
         videoArea.style.transform = "translateX(0)";
+
         socket.emit("skip");
-      }, 260);
+
+      }, 250);
 
     } else {
+
+      // Geri dön
       videoArea.style.transform = "translateX(0)";
+
     }
   }, { passive: true });
+
 }
+
 
 
 //Dark/Light mode toggle
