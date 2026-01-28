@@ -115,6 +115,13 @@ function stopVideo() {
   videoArea.classList.add("hidden");
 }
 
+function haptic(ms = 40){
+  if (navigator.vibrate) {
+    navigator.vibrate(ms);
+  }
+}
+
+
 /* SOCKET */
 
 socket.on("onlineCount", (count) => {
@@ -205,6 +212,7 @@ socket.on("message", (data) => {
 });
 
 send.onclick = () => {
+  haptic(20);
   const msg = input.value.trim();
   if (!msg) return;
 
@@ -230,7 +238,10 @@ input.addEventListener("keydown", (e) => {
 
 /* SKIP */
 skip.onclick = () => {
+
+  haptic();
   stopVideo();
+  socket.emit("skip");
 
   messages.innerHTML = "";
   chat.classList.add("hidden");
@@ -334,3 +345,31 @@ socket.on("force-kick", ()=>{
   window.location.href = "/kicked.html";
 
 });
+
+
+//Swipe to skip
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener("touchstart", e => {
+  touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener("touchend", e => {
+  touchEndX = e.changedTouches[0].screenX;
+  handleSwipe();
+});
+
+function handleSwipe() {
+
+  const diff = touchEndX - touchStartX;
+
+  // En az 80px kaydırma
+  if (Math.abs(diff) > 80) {
+    socket.emit("skip");
+
+    if (navigator.vibrate) {
+      navigator.vibrate(40);
+    }
+  }
+}
