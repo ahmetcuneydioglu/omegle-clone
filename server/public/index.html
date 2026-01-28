@@ -101,60 +101,38 @@
   </div>
 
 
-  <!-- CHAT -->
+  <!-- CHAT (video üstüne alt panel) -->
+<div
+  id="chat"
+  class="hidden fixed inset-0 z-40 flex flex-col justify-end p-3"
+>
+  <!-- Mesajlar -->
   <div
-    id="chat"
-    class="hidden fixed inset-0 bg-black/90 z-40 flex flex-col p-3"
-  >
+    id="messages"
+    class="max-h-[35vh] overflow-y-auto text-sm space-y-1 mb-2 bg-black/40 backdrop-blur rounded-xl p-2"
+  ></div>
 
-    <!-- Mesajlar -->
-    <div
-      id="messages"
-      class="flex-1 overflow-y-auto text-sm space-y-1 mb-2"
-    ></div>
-
-
-    <!-- Kontroller -->
-    <div
-      id="controls"
-      class="flex justify-around mb-2"
-    >
-
-      <button id="toggleMic" class="text-xl">🎤</button>
-      <button id="toggleCam" class="text-xl">📷</button>
-      <button id="pauseBtn" class="text-xl">⏸️</button>
-      <button id="reportBtn" class="text-xl text-red-500">🚨</button>
-
-    </div>
-
-
-    <!-- Input -->
-    <div class="flex gap-2">
-
-      <input
-        id="input"
-        type="text"
-        placeholder="Mesaj yaz..."
-        class="flex-1 bg-gray-800 rounded-xl px-3 py-2 outline-none"
-      />
-
-      <button
-        id="send"
-        class="bg-blue-600 px-4 rounded-xl"
-      >
-        ➤
-      </button>
-
-      <button
-        id="skip"
-        class="bg-blue-600 px-4 rounded-xl"
-      >
-        Yeni
-      </button>
-
-    </div>
-
+  <!-- Kontroller -->
+  <div id="controls" class="flex justify-around mb-2 bg-black/40 backdrop-blur rounded-xl py-2">
+    <button id="toggleMic" class="text-xl">🎤</button>
+    <button id="toggleCam" class="text-xl">📷</button>
+    <button id="pauseBtn" class="text-xl">⏸️</button>
+    <button id="reportBtn" class="text-xl text-red-500">🚨</button>
   </div>
+
+  <!-- Input -->
+  <div class="flex gap-2">
+    <input
+      id="input"
+      type="text"
+      placeholder="Mesaj yaz..."
+      class="flex-1 bg-gray-800 rounded-xl px-3 py-2 outline-none"
+    />
+    <button id="send" class="bg-blue-600 px-4 rounded-xl">➤</button>
+    <button id="skip" class="bg-blue-600 px-4 rounded-xl">Yeni</button>
+  </div>
+</div>
+
 
 
   <!-- ALT BAR -->
