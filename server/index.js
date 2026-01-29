@@ -109,3 +109,13 @@ io.on('connection', socket => {
     }
   });
 });
+
+// Admin giriş endpointi
+app.post('/admin', (req, res) => {
+const { username, password } = req.body;
+if (username === 'ahmet' && password === 'sifre') {
+res.redirect('/admin/admin.html');
+} else {
+res.status(401).send('Yetkisiz giriş');
+}
+});
