@@ -47,11 +47,11 @@ document.getElementById("btnLogin").onclick = async () => {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
 
-  const res = await fetch("/admin/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
+  const res = await fetch("https://omegle-clone-api.onrender.com/admin/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ username, password })
+});
 
   const data = await res.json();
 
