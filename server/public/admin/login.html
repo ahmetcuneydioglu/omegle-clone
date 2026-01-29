@@ -42,16 +42,41 @@
 
 <script>
 
-document.getElementById("btnLogin").onclick = async () => {
+  // login.html içindeki script kısmını şu şekilde güncelleyin:
+    document.getElementById("btnLogin").onclick = async () => {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("/admin/login", { // Tam URL yerine sadece yol
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          location.href = "/admin/index.html"; // Admin panelinin gerçek yolu
+        } else {
+          alert(data.error || "Hatalı giriş");
+        }
+      } catch (err) {
+        console.error("Hata:", err);
+        alert("Sunucuya bağlanılamadı.");
+      }
+    };
+
+/* document.getElementById("btnLogin").onclick = async () => {
 
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
 
-  const res = await fetch("https://omegle-clone-api.onrender.com/admin/login", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username, password })
-});
+  const res = await fetch("/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
 
   const data = await res.json();
 
@@ -61,7 +86,7 @@ document.getElementById("btnLogin").onclick = async () => {
     alert(data.error || "Hatalı giriş");
   }
 
-};
+}; */
 
 </script>
 

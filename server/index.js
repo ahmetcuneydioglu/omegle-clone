@@ -9,6 +9,7 @@ const io     = new Server(server);
 
 // Statik dosyalara servis (index.html, script.js vs. "public" klasöründen)
 app.use(express.static('public'));
+app.use(express.json());
 
 // Sunucu PORT ayarı (Render kendi portunu ENV ile atar, yoksa 5000 kullan)
 const PORT = process.env.PORT || 3000;
@@ -111,11 +112,15 @@ io.on('connection', socket => {
 });
 
 // Admin giriş endpointi
-app.post('/admin', (req, res) => {
-const { username, password } = req.body;
-if (username === 'ahmet' && password === 'sifre') {
-res.redirect('/admin/admin.html');
-} else {
-res.status(401).send('Yetkisiz giriş');
-}
+// Mevcut app.post('/admin'...) kısmını SİLİN ve yerine bunu yapıştırın:
+app.post('/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    // Güvenlik notu: Gerçek projede şifreleri düz metin saklamayın
+    if (username === 'ahmet' && password === 'sifre') {
+        // İstemciye başarı mesajı dönüyoruz
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ success: false, error: 'Yetkisiz giriş' });
+    }
 });
