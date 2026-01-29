@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
+import session from 'express-session';
 
 
 const app    = express();
@@ -111,16 +112,35 @@ io.on('connection', socket => {
   });
 });
 
-// Admin giriş endpointi
-// Mevcut app.post('/admin'...) kısmını SİLİN ve yerine bunu yapıştırın:
+
+// Render üzerindeki SESSION_SECRET değişkenini kullanın
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'Ahmet263271', 
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // HTTPS kullanıyorsanız true yapın
+}));
+
+app.use(express.json()); // JSON gövdesini okumak için
+
+// GİRİŞ ENDPOİNTİ: Render değişkenlerini (ADMIN_USER, ADMIN_PASS) kontrol eder
 app.post('/admin/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    // Güvenlik notu: Gerçek projede şifreleri düz metin saklamayın
-    if (username === 'ahmet' && password === 'sifre') {
-        // İstemciye başarı mesajı dönüyoruz
-        res.json({ success: true });
-    } else {
-        res.status(401).json({ success: false, error: 'Yetkisiz giriş' });
-    }
+  const { username, password } = req.body;
+  
+  // Render panelindeki değerlerle karşılaştırma
+  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
+    req.session.isAdmin = true; // Oturumu başlat
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, error: 'Hatalı bilgiler' });
+  }
+});
+
+// KORUMA: Admin sayfalarına yetkisiz girişi engeller
+app.use('/admin', (req, res, next) => {
+  if (req.session.isAdmin) {
+    next();
+  } else {
+    res.redirect('/login.html'); // Giriş yapılmamışsa login'e atar
+  }
 });
