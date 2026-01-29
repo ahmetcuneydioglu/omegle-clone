@@ -2,177 +2,72 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <title>Yeni Nesil Chat</title>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ome Chat</title>
+  <style>
+    /* Basit stil tanımları */
+    body, html { margin: 0; padding: 0; background: #000; color: #000; }
+    #container { display: flex; height: 100vh; }
+    #leftPanel { width: 280px; background: #f0f0f0; padding: 15px; font-family: sans-serif; }
+    #leftPanel h1 { font-size: 1.2em; margin: 0 0 10px; }
+    #leftPanel .status { font-size: 0.9em; margin-bottom: 15px; }
+    #leftPanel button { width: 80px; margin: 5px 5px 5px 0; }
+    #leftPanel select { margin-left: 5px; }
+    #leftPanel p.rules { font-size: 0.8em; color: #555; margin-top: 20px; }
+    #videoArea { flex: 1; position: relative; background: #000; overflow: hidden; }
+    /* Uzak ve yerel video elementleri */
+    #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
+    #localVideo { position: absolute; bottom: 10px; right: 10px; width: 150px; border: 2px solid #fff; }
+    /* Metin katmanları */
+    .overlay-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff;
+                    background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; text-align: center; }
+    /* Alt kontrol çubuğu */
+    #controlsOverlay { position: absolute; bottom: 0; left: 0; right: 0; 
+                       background: rgba(0,0,0,0.6); color: #fff; padding: 5px; display: flex; align-items: center; }
+    #controlsOverlay button, #controlsOverlay input { margin-right: 5px; }
+    #controlsOverlay input { flex: 1; padding: 5px; border: none; border-radius: 3px; }
+    #chatMessages { position: absolute; bottom: 45px; left: 5px; right: 5px; 
+                    max-height: 30%; overflow-y: auto; font-size: 0.9em; color: #fff; }
+    #chatMessages div { margin: 2px 0; }
+  </style>
 </head>
-
-<body class="bg-gray-900 text-white min-h-screen">
-
-
-<!-- ================= HOME ================= -->
-
-<div id="homeScreen"
- class="min-h-screen grid grid-cols-1 md:grid-cols-2">
-
-  <!-- SOL -->
-  <div class="flex flex-col items-center justify-center gap-6 p-6 bg-gray-950">
-
-    <div class="text-4xl font-bold flex items-center gap-2">
-      📺 <span class="text-green-400">Ome</span>Chat
+<body>
+  <div id="container">
+    <!-- Sol panel: Logo, durum ve kontroller -->
+    <div id="leftPanel">
+      <h1>Ome Chat 📺</h1>
+      <div class="status">Online: <span id="onlineCount">0</span></div>
+      <button id="startBtn">Başlat</button>
+      <button id="stopBtn">Dur</button><br/>
+      <!-- Ülke seçimi (şimdilik sadece görsel amaçlı) -->
+      Ülke: 
+      <select id="countrySelect" disabled>
+        <option value="TR">🇹🇷 Türkiye</option>
+        <option value="ALL" selected>🌐 Global</option>
+      </select>
+      <!-- (İleride ülkeler arası filtreleme için kullanılabilir) -->
+      <p class="rules">Başlatarak kuralları kabul etmiş olursun.</p>
     </div>
-
-    <p id="online" class="text-green-400 text-sm">
-      Online: 0
-    </p>
-
-    <div class="grid grid-cols-2 gap-4 w-full max-w-sm">
-
-      <button id="btnStart"
-        class="bg-green-600 py-4 rounded-xl text-lg font-semibold">
-        ▶ Başlat
-      </button>
-
-      <button id="btnStop"
-        class="bg-red-600 py-4 rounded-xl text-lg font-semibold">
-        ⏹ Dur
-      </button>
-
-      <button class="bg-gray-700 py-3 rounded-xl">
-        🇹🇷 Ülke
-      </button>
-
-      <button class="bg-gray-700 py-3 rounded-xl">
-        👤 Ben
-      </button>
-
+    <!-- Sağ panel: Video alanı -->
+    <div id="videoArea">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" muted autoplay playsinline></video>
+      <!-- Duruma göre gösterilecek örtüşen yazılar -->
+      <div id="cameraPreviewText" class="overlay-text">Kamera önizleme</div>
+      <div id="waitingText" class="overlay-text" style="display:none;">Eşleşme bekleniyor...</div>
+      <!-- Mesajlar ve kontrol butonları (sayfanın en altına yerleşik) -->
+      <div id="chatMessages"></div>
+      <div id="controlsOverlay">
+        <button id="unmuteBtn">🔇 Ses Aç</button>
+        <button id="camToggleBtn">📷 Kamera</button>
+        <button id="nextBtn">Yeni</button>
+        <input type="text" id="chatInput" placeholder="Mesaj yaz..." />
+        <button id="sendBtn">➡️</button>
+      </div>
     </div>
-
-    <p class="text-xs text-gray-400 mt-4 text-center">
-      Başlatarak kuralları kabul etmiş olursun.
-    </p>
-
   </div>
-
-
-  <!-- SAĞ (PREVIEW) -->
-  <div class="flex items-center justify-center bg-black relative">
-
-    <video
-      id="previewVideo"
-      autoplay
-      muted
-      playsinline
-      class="w-full h-full object-cover"
-    ></video>
-
-    <div class="absolute bottom-3 text-xs opacity-70">
-      Kamera önizleme
-    </div>
-
-  </div>
-
-</div>
-
-
-
-<!-- ================= APP ================= -->
-
-<div id="appScreen" class="hidden w-screen h-screen flex flex-col bg-black">
-
-  <!-- VIDEO ROW -->
-  <div class="flex flex-1">
-
-    <!-- REMOTE -->
-    <div class="w-1/2 bg-black relative">
-      <video id="remoteVideo"
-        autoplay playsinline
-        class="w-full h-full object-cover">
-      </video>
-    </div>
-
-    <!-- LOCAL -->
-    <div class="w-1/2 bg-black relative">
-      <video id="localVideo"
-        autoplay muted playsinline
-        class="w-full h-full object-cover">
-      </video>
-    </div>
-
-  </div>
-
-
-  <!-- CONTROLS -->
-  <div
-    class="flex justify-center gap-3 p-2 bg-gray-900">
-
-    <button id="skip"
-      class="px-4 py-2 bg-yellow-600 rounded">
-      ⏭ Geç
-    </button>
-
-    <button id="toggleMic"
-      class="px-4 py-2 bg-gray-700 rounded">
-      🎤
-    </button>
-
-    <button id="toggleCam"
-      class="px-4 py-2 bg-gray-700 rounded">
-      📷
-    </button>
-
-    <button id="pauseBtn"
-      class="px-4 py-2 bg-gray-700 rounded">
-      ⏸
-    </button>
-
-    <button id="reportBtn"
-      class="px-4 py-2 bg-red-600 rounded">
-      🚨
-    </button>
-
-  </div>
-
-
-  <!-- CHAT -->
-  <div
-    class="flex flex-col h-52 bg-gray-950 p-2">
-
-    <div id="status"
-        class="text-center text-sm text-green-400 mb-1">
-        Hazır
-        </div>
-
-    <div
-      id="messages"
-      class="flex-1 overflow-y-auto text-sm">
-    </div>
-
-    <div class="flex gap-2 mt-2">
-
-      <input
-        id="input"
-        class="flex-1 bg-gray-800 px-3 py-2 rounded"
-        placeholder="Mesaj yaz..." />
-
-      <button
-        id="send"
-        class="px-4 bg-green-600 rounded">
-        ➤
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="/script.js"></script>
-
+  <!-- Socket.IO istemci ve uygulama script'ini en son yüklüyoruz -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

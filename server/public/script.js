@@ -1,581 +1,237 @@
-const socket = io();
+const socket = io();  // Socket.IO sunucusuna bağlan (aynı host üzerinden)
 
+// HTML elementlerine erişimler
+const startBtn     = document.getElementById('startBtn');
+const stopBtn      = document.getElementById('stopBtn');
+const nextBtn      = document.getElementById('nextBtn');
+const remoteVideo  = document.getElementById('remoteVideo');
+const localVideo   = document.getElementById('localVideo');
+const waitingText  = document.getElementById('waitingText');
+const previewText  = document.getElementById('cameraPreviewText');
+const unmuteBtn    = document.getElementById('unmuteBtn');
+const camToggleBtn = document.getElementById('camToggleBtn');
+const chatInput    = document.getElementById('chatInput');
+const sendBtn      = document.getElementById('sendBtn');
+const chatMessages = document.getElementById('chatMessages');
 
-let reported = false;
-let isInitiator = false;
+// Durum değişkenleri
 let localStream = null;
-let peerConnection = null;
-let pendingCandidates = [];
-let currentFacing = "user"; // front
-let firstSwipe = false;
+let peerConn    = null;
+let isInitiator = false;   // Bu kullanıcı eşleşmede teklifi başlatacak mı?
+let remoteStreamStarted = false;
 
-const homeScreen = document.getElementById("homeScreen");
-const appScreen = document.getElementById("appScreen");
-
-const btnStart = document.getElementById("btnStart");
-const btnStop = document.getElementById("btnStop");
-const previewVideo = document.getElementById("previewVideo");
-
-
-/* UI */
-const status = document.getElementById("status");
-const chat = document.getElementById("chat");
-const messages = document.getElementById("messages");
-const input = document.getElementById("input");
-const send = document.getElementById("send");
-const skip = document.getElementById("skip");
-const online = document.getElementById("online");
-
-const localVideo = document.getElementById("localVideo");
-const remoteVideo = document.getElementById("remoteVideo");
-const videoArea = document.getElementById("videoArea");
-
-const toggleMic = document.getElementById("toggleMic");
-const toggleCam = document.getElementById("toggleCam");
-const pauseBtn = document.getElementById("pauseBtn");
-const reportBtn = document.getElementById("reportBtn");
-
-
-/* RTC 
-const rtcConfig = {
+// STUN sunucuları (NAT traversing için)
+const iceConfig = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.l.google.com:19302" },       // Google STUN
+    { urls: "stun:stun.services.mozilla.com" }      // Mozilla STUN
+    // Gerekirse buraya bir TURN sunucusu da eklenebilir (prod ortam için)
+  ]
+};
 
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject"
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject"
+// Yeni bir WebRTC PeerConnection oluştur ve olaylarını tanımla
+function createPeerConnection() {
+  peerConn = new RTCPeerConnection(iceConfig);
+  // Tüm yerel medya akışını RTCPeerConnection'a ekle
+  localStream.getTracks().forEach(track => peerConn.addTrack(track, localStream));
+
+  // ICE adayları bulundukça karşı tarafa ilet
+  peerConn.onicecandidate = event => {
+    if (event.candidate) {
+      socket.emit('candidate', event.candidate);
     }
-  ]
-};
-
-*/
-
-const rtcConfig = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" }
-  ]
-};
-
-let previewStream = null;
-
-async function startPreview(){
-
-  previewStream =
-    await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: false
-    });
-
-  previewVideo.srcObject = previewStream;
-} 
-
-
-/* Kamera */
-async function ensureCamera() {
-
-  if (localStream) return;
-
-  try {
-
-    localStream =
-      await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: currentFacing
-        },
-        audio: true
-      });
-
-    localVideo.srcObject = localStream;
-
-  } catch (err) {
-
-    console.error("CAM ERROR:", err);
-
-    alert("Kamera açılamadı!");
-  }
-}
-
-
-/* Peer */
-function ensurePeer() {
-  if (peerConnection) return;
-
-  peerConnection = new RTCPeerConnection(rtcConfig);
-
-
-  localStream.getTracks().forEach((track) => {
-    peerConnection.addTrack(track, localStream);
-  });
-
-  peerConnection.ontrack = (e) => {
-    remoteVideo.srcObject = e.streams[0];
-    remoteVideo.play?.().catch(() => {});
   };
 
-  peerConnection.onicecandidate = (e) => {
-    if (e.candidate) socket.emit("ice-candidate", e.candidate);
-  };
-
-  peerConnection.onconnectionstatechange = () => {
-    console.log("RTC:", peerConnection.connectionState);
+  // Karşı taraftan bir medya akışı (track) geldiyse, remote videoda oynat
+  peerConn.ontrack = event => {
+    const [stream] = event.streams;
+    remoteVideo.srcObject = stream;
+    remoteVideo.play().catch(e => console.error("Remote video play failed:", e));
+    remoteStreamStarted = true;
+    // Karşı tarafın sesi başlangıçta kapalı (unmuteBtn ile açılabilir)
+    remoteVideo.muted = true;
+    unmuteBtn.style.display = 'inline-block';
   };
 }
 
-async function ensureMediaAndPeer() {
-  await ensureCamera();
-  ensurePeer();
-}
+// Socket.IO sunucusundan gelen çevrimiçi kişi sayısını güncelle
+socket.on('onlineCount', count => {
+  document.getElementById('onlineCount').innerText = count;
+});
 
-/* Kapat */
-function stopVideo() {
-
-  if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
+// Eşleşme bulunduğunda sunucudan bu olay geliyor
+socket.on('matched', data => {
+  console.log("Eşleşme bulundu:", data);
+  // Eşleşme geldiğinde yeni bir peer connection başlat
+  createPeerConnection();
+  if (data && data.initiator) {
+    isInitiator = true;
+    // Teklifi oluştur ve karşı tarafa gönder
+    peerConn.createOffer().then(offer => {
+      return peerConn.setLocalDescription(offer);
+    }).then(() => {
+      socket.emit('offer', peerConn.localDescription);
+    }).catch(err => console.error("Offer error:", err));
+  } else {
+    // Bu taraf cevap bekleyecek (initiator = false)
+    isInitiator = false;
   }
+  // Artık bekleme mesajını kaldırabiliriz (eşleşti)
+  waitingText.style.display = 'none';
+});
 
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop());
-    localStream = null;
+// Karşı taraftan WebRTC offer (teklif) geldi
+socket.on('offer', offerDesc => {
+  console.log("Offer alındı");
+  if (!peerConn) { createPeerConnection(); }
+  peerConn.setRemoteDescription(new RTCSessionDescription(offerDesc)).then(() => {
+    // Teklif alındı, kendi cevabımızı (answer) oluştur
+    return peerConn.createAnswer();
+  }).then(answer => {
+    return peerConn.setLocalDescription(answer);
+  }).then(() => {
+    // Oluşturulan answer'ı karşı tarafa gönder
+    socket.emit('answer', peerConn.localDescription);
+  }).catch(err => console.error("Answer error:", err));
+});
+
+// Karşı taraftan WebRTC answer (cevap) geldi
+socket.on('answer', answerDesc => {
+  console.log("Answer alındı");
+  peerConn.setRemoteDescription(new RTCSessionDescription(answerDesc))
+         .catch(err => console.error("Remote SDP set error:", err));
+});
+
+// Karşı taraftan ICE adayı bilgisi geldi
+socket.on('candidate', candidate => {
+  // Yeni bir ICE adayı ekle
+  if (peerConn) {
+    peerConn.addIceCandidate(new RTCIceCandidate(candidate))
+           .catch(err => console.error("ICE candidate eklenemedi:", err));
   }
+});
 
-  pendingCandidates = [];
-
-  localVideo.srcObject = null;
+// Eşleşmedeki diğer kullanıcı bağlantıyı kesti (veya “Dur/Yeni” dedi)
+socket.on('partnerDisconnected', () => {
+  console.log("Partner ayrıldı");
+  // Mevcut eşleşmeyi sonlandır
+  if (peerConn) { peerConn.close(); peerConn = null; }
   remoteVideo.srcObject = null;
-
-  videoArea.classList.add("hidden");
-}
-
-
-function haptic(ms = 40){
-  if (navigator.vibrate) {
-    navigator.vibrate(ms);
-  }
-}
-
-
-/* SOCKET */
-
-socket.on("onlineCount", (count) => {
-  online.innerText = "Online: " + count;
+  remoteStreamStarted = false;
+  isInitiator = false;
+  // Kullanıcıyı bilgilendir (metin göster)
+  waitingText.innerText = "Eşleşme sonlandı";
+  waitingText.style.display = 'block';
+  // Tekrar kamerayı önizleme moduna al (kullanıcı isterse yeniden başlatabilir)
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
 });
 
-socket.on("waiting", () => {
-  status.innerText = "Eşleşme bekleniyor...";
+// Sunucudan gelen sohbet mesajı
+socket.on('message', msg => {
+  // Gelen mesajı sohbet alanına ekle
+  const msgDiv = document.createElement('div');
+  msgDiv.textContent = "Yabancı: " + msg;
+  chatMessages.appendChild(msgDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 });
 
-/* MATCH */
-socket.on("matched", async (data) => {
+// ** Etkinlik Bağlayıcıları (Event Handlers) ** //
 
-  reported = false;
-
-  isInitiator = data === true;
-
-  console.log("MATCHED | INIT:", isInitiator);
-
-  stopVideo(); // temiz reset
-
-  status.innerText = "Eşleşti 🎉";
-
-  chat.classList.remove("hidden");
-  videoArea.classList.remove("hidden");
-
-  await ensureCamera();
-  ensurePeer();
-
-  if (isInitiator) {
-
-    const offer = await peerConnection.createOffer();
-
-    await peerConnection.setLocalDescription(offer);
-
-    socket.emit("offer", offer);
-  }
-});
-
-
-/* OFFER */
-socket.on("offer", async (offer) => {
-  console.log("OFFER alındı");
-
-  await ensureMediaAndPeer();
-
-  await peerConnection.setRemoteDescription(offer);
-
-  for (const c of pendingCandidates) {
-    await peerConnection.addIceCandidate(c);
-  }
-
-  pendingCandidates = [];
-
-  const answer = await peerConnection.createAnswer();
-  await peerConnection.setLocalDescription(answer);
-
-  socket.emit("answer", answer);
-});
-
-/* ANSWER */
-socket.on("answer", async (answer) => {
-  if (!peerConnection) return;
-
-  console.log("ANSWER alındı");
-
-  await peerConnection.setRemoteDescription(answer);
-
-  for (const c of pendingCandidates) {
-    await peerConnection.addIceCandidate(c);
-  }
-
-  pendingCandidates = [];
-});
-
-/* ICE */
-socket.on("ice-candidate", async (candidate) => {
-  if (!peerConnection) return;
-
-  if (!peerConnection.remoteDescription) {
-    pendingCandidates.push(candidate);
-    return;
-  }
-
-  await peerConnection.addIceCandidate(candidate);
-});
-
-btnStart.onclick = () => {
-
-  if (previewVideo && previewVideo.srcObject) {
-  previewVideo.srcObject.getTracks().forEach(t => t.stop());
-  previewVideo.srcObject = null;
-}
-
-
-  homeScreen.classList.add("hidden");
-  appScreen.classList.remove("hidden");
-
-  status.innerText = "Bağlanıyor...";
-
-socket.emit("start");
-};
-
-
-
-btnStop.onclick = () => {
-
-  homeScreen.classList.remove("hidden");
-  appScreen.classList.add("hidden");
-
-  // tekrar preview başlat
-  startPreview();
-};
-
-
-/* CHAT */
-socket.on("message", (data) => {
-  const div = document.createElement("div");
-  div.innerText = `${data.from}: ${data.text}`;
-  messages.appendChild(div);
-});
-
-send.onclick = () => {
-  haptic(20);
-  const msg = input.value.trim();
-  if (!msg) return;
-
-  socket.emit("message", msg);
-
-  const div = document.createElement("div");
-  div.innerText = "Sen: " + msg;
-  messages.appendChild(div);
-
-  input.value = "";
-};
-
-remoteVideo.addEventListener("dblclick", ()=>{
-  socket.emit("skip");
-});
-
-input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    send.click();
+// Başlat butonuna tıklandığında
+startBtn.addEventListener('click', () => {
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  if (!localStream) {
+    // Kamera ve mikrofon izni iste ve akışı al
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        localStream = stream;
+        // Yerel videoda kendi görüntümüzü göster
+        localVideo.srcObject = stream;
+        localVideo.play().catch(e => console.error("Local video play failed:", e));
+        previewText.style.display = 'block';  // Kamera önizleme yazısını göster
+        // Eşleşme isteği gönder (kendimizi bekleme kuyruğuna sokuyoruz)
+        socket.emit('startMatch');
+        previewText.style.display = 'none';
+        waitingText.style.display = 'block';  // "Eşleşme bekleniyor..." göster
+      })
+      .catch(err => {
+        console.error("Kamera/mikrofon erişimi reddedildi:", err);
+        alert("Kamera veya mikrofon erişimi verilmedi.");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      });
+  } else {
+    // Zaten localStream varsa (ör. daha önce bağlanmıştı)
+    socket.emit('startMatch');
+    previewText.style.display = 'none';
+    waitingText.style.display = 'block';
   }
 });
 
-/* SKIP */
-skip.onclick = () => {
-
-  if(!firstSwipe){
-  firstSwipe = true;
-}
-
-  haptic();
-  stopVideo();
-  socket.emit("skip");
-
-  messages.innerHTML = "";
-  chat.classList.add("hidden");
-
-  status.innerText = "Yeni eşleşme aranıyor...";
-};
-
-socket.on("partnerDisconnected", () => {
-  reported = false;
-
-  stopVideo();
-
-  messages.innerHTML = "";
-  chat.classList.add("hidden");
-
-  status.innerText = "Yeni eşleşme aranıyor...";
+// Dur (Stop) butonuna tıklandığında
+stopBtn.addEventListener('click', () => {
+  socket.emit('stopChat');  // Sunucuya eşleşmeyi sonlandırdığımızı bildir
+  // Mevcut peer bağlantısını sonlandır
+  if (peerConn) { peerConn.close(); peerConn = null; }
+  if (remoteVideo.srcObject) { remoteVideo.srcObject = null; }
+  remoteStreamStarted = false;
+  isInitiator = false;
+  // Kullanıcıyı başlangıç durumuna döndür (kamera önizleme moduna)
+  waitingText.style.display = 'none';
+  previewText.style.display = 'block';
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
 });
 
-/* SYSTEM */
-socket.on("system", (text) => {
-  const div = document.createElement("div");
-  div.style.color = "red";
-  div.innerText = "⚠️ Sistem: " + text;
-  messages.appendChild(div);
+// Yeni (Next) butonuna tıklandığında – mevcut sohbeti sonlandırıp yenisini başlat
+nextBtn.addEventListener('click', () => {
+  socket.emit('stopChat');    // Önce mevcut eşleşmeyi sonlandır
+  if (peerConn) { peerConn.close(); peerConn = null; }
+  remoteVideo.srcObject = null;
+  remoteStreamStarted = false;
+  isInitiator = false;
+  // Yeni eşleşme iste
+  socket.emit('startMatch');
+  waitingText.innerText = "Eşleşme bekleniyor...";
+  waitingText.style.display = 'block';
+  previewText.style.display = 'none';
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
 });
 
+// "Ses Aç" (unmute) butonuna tıklandığında – karşı tarafın sesini aç/kapa
+unmuteBtn.addEventListener('click', () => {
+  if (remoteStreamStarted) {
+    remoteVideo.muted = !remoteVideo.muted;
+    unmuteBtn.textContent = remoteVideo.muted ? "🔇 Ses Aç" : "🔊 Ses Kapat";
+  }
+});
 
-let micOn = true;
-
-toggleMic.onclick = () => {
+// (Opsiyonel) Kamera butonu – kullanıcının kendi kamerasını aç/kapat (şu an sadece ikon değiştiriyor)
+camToggleBtn.addEventListener('click', () => {
   if (!localStream) return;
-
-  micOn = !micOn;
-
-  localStream.getAudioTracks().forEach(t => {
-    t.enabled = micOn;
-  });
-
-  toggleMic.innerText = micOn ? "🎤 Ses Kapat" : "🔇 Ses Aç";
-};
-
-
-let camOn = true;
-
-toggleCam.onclick = () => {
-  if (!localStream) return;
-
-  camOn = !camOn;
-
-  localStream.getVideoTracks().forEach(t => {
-    t.enabled = camOn;
-  });
-
-  toggleCam.innerText = camOn ? "📷 Kamera Kapat" : "📵 Kamera Aç";
-};
-
-
-let paused = false;
-
-pauseBtn.onclick = () => {
-
-  if (!localStream) return;
-
-  paused = !paused;
-
-  localStream.getTracks().forEach(t => {
-    t.enabled = !paused;
-  });
-
-  pauseBtn.innerText = paused ? "▶️ Devam" : "⏸️ Durdur";
-};
-
-
-
-
-    reportBtn.addEventListener("click", () => {
-
-      if (reported) return;
-
-      reported = true;
-
-      socket.emit("reportUser");
-
+  const videoTrack = localStream.getVideoTracks()[0];
+  videoTrack.enabled = !videoTrack.enabled;
+  camToggleBtn.textContent = videoTrack.enabled ? "📷 Kamera" : "📷 Kapalı";
 });
 
-
-socket.on("force-ban", data => {
-
-  const until = data?.until || "";
-  const reason = data?.reason || "";
-
-  window.location.href =
-    "/banned.html?until=" + until + "&reason=" + encodeURIComponent(reason);
-
+// Sohbet mesajı gönderme
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keypress', e => {
+  if (e.key === 'Enter') { sendMessage(); }
 });
 
-
-socket.on("force-kick", ()=>{
-
-  window.location.href = "/kicked.html";
-
-});
-
-
-
-
-//Dark/Light mode toggle
-let dark = true;
-
-const themeBtn = document.getElementById("themeBtn");
-
-if (themeBtn) {
-
-  themeBtn.onclick = () => {
-
-    dark = !dark;
-
-    document.body.classList.toggle("bg-black");
-    document.body.classList.toggle("bg-white");
-
-    document.body.classList.toggle("text-white");
-    document.body.classList.toggle("text-black");
-
-    themeBtn.innerText = dark ? "🌙" : "☀️";
-  };
-
+function sendMessage() {
+  const msg = chatInput.value.trim();
+  if (msg === "") return;
+  socket.emit('message', msg);  // Sunucu üzerinden karşı tarafa ilet
+  // Kendi mesajımızı da ekrana yaz
+  const msgDiv = document.createElement('div');
+  msgDiv.textContent = "Ben: " + msg;
+  msgDiv.style.color = "#aaf";  // kendi mesajlarımız farklı renkte
+  chatMessages.appendChild(msgDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  chatInput.value = "";
 }
-
-//flip camera
-const flipCam = document.getElementById("flipCam");
-
-if (flipCam) {
-
-  flipCam.onclick = async () => {
-
-    currentFacing =
-      currentFacing === "user" ? "environment" : "user";
-
-    if (localStream) {
-        localStream.getTracks().forEach(t => {
-        t.enabled = false;
-    });
-  }
-
-
-    await ensureCamera();
-
-    haptic();
-  };
-}
-
-// Swipe öğretici (1 kere)
-if (!localStorage.getItem("swipeHintShown")) {
-
-  const hint = document.getElementById("swipeHint");
-
-  if (hint) {
-
-    hint.classList.remove("hidden");
-
-    setTimeout(() => {
-      hint.classList.add("hidden");
-      localStorage.setItem("swipeHintShown", "1");
-    }, 6000);
-
-  }
-}
-
-
-// =======================
-// SWIPE LAYER SYSTEM
-// =======================
-
-const swipeLayer = document.getElementById("swipeLayer");
-
-let sx = 0;
-let cx = 0;
-let dragging = false;
-
-if (swipeLayer) {
-
-  swipeLayer.addEventListener("pointerdown", e => {
-
-    if (videoArea.classList.contains("hidden")) return;
-
-    sx = e.clientX;
-    cx = sx;
-    dragging = true;
-
-    swipeLayer.setPointerCapture(e.pointerId);
-
-    videoArea.style.transition = "none";
-  });
-
-
-  swipeLayer.addEventListener("pointermove", e => {
-
-    if (!dragging) return;
-
-    cx = e.clientX;
-
-    const diff = cx - sx;
-
-    videoArea.style.transform =
-      `translateX(${diff}px) rotate(${diff/22}deg)`;
-  });
-
-
-  swipeLayer.addEventListener("pointerup", () => {
-
-    if (!dragging) return;
-
-    dragging = false;
-
-    const diff = cx - sx;
-
-    videoArea.style.transition = "0.25s ease";
-
-    if (Math.abs(diff) > 80) {
-
-      const dir = diff > 0 ? 1 : -1;
-
-      videoArea.style.transform =
-        `translateX(${dir * window.innerWidth}px) rotate(${dir * 14}deg)`;
-
-      haptic(40);
-
-      setTimeout(() => {
-
-        videoArea.style.transition = "none";
-        videoArea.style.transform = "translateX(0)";
-
-        socket.emit("skip");
-
-      }, 250);
-
-    } else {
-
-      videoArea.style.transform = "translateX(0)";
-    }
-  });
-
-
-  swipeLayer.addEventListener("pointercancel", () => {
-    dragging = false;
-    videoArea.style.transform = "translateX(0)";
-  });
-}
-
-// Sayfa açılınca kamera önizleme başlasın
-//startPreview();
-
-
-// Sayfa açılınca sadece home ekranda preview başlasın
-window.addEventListener("load", () => {
-
-  if (homeScreen && !homeScreen.classList.contains("hidden")) {
-    startPreview();
-  }
-
-});
